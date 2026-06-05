@@ -13,3 +13,22 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
+
+  - type: worker
+    name: task-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TRACKER_URL
+        sync: false
+      - key: REMINDER_CHAT_ID
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
