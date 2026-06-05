@@ -17,8 +17,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TRACKER_URL = os.environ.get("TRACKER_URL", "http://localhost:5000")  # URL трекера (Railway или localhost)
+TRACKER_URL = os.environ.get("TRACKER_URL", "http://localhost:5000")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")  # бесплатно: console.groq.com
 
 # Ключевые слова для обнаружения задач
 TASK_PATTERNS = [
@@ -130,35 +131,74 @@ def extract_tasks_local(text: str, author: str, date: str) -> list[dict]:
     return tasks
 
 
-async def extract_tasks_claude(text: str, author: str, date: str) -> list[dict]:
-    """Task extraction via Claude API."""
-    if not ANTHROPIC_API_KEY:
-        return extract_tasks_local(text, author, date)
+TASK_PROMPT = """Ты — ассистент который извлекает задачи из рабочих переписок.
 
-    import anthropic
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
-    prompt = f"""Сообщение от {author} ({date}):
+Сообщение от {author} ({date}):
 {text}
 
-Извлеки задачи. Верни ТОЛЬКО JSON массив (без markdown):
-[{{"title": "...", "assignee": "{author}", "deadline": null, "priority": "high/medium/low", "status": "todo", "category": "обучение/маркетинг/продажи/контент/операционка/продукт", "source_date": "{date}", "context": "..."}}]
+Извлеки конкретные задачи. Верни ТОЛЬКО валидный JSON массив (без markdown, без пояснений):
+[{{"title": "краткое название", "assignee": "имя или ''", "deadline": "дедлайн или null", "priority": "high/medium/low", "status": "todo", "category": "обучение/маркетинг/продажи/контент/операционка/продукт", "source_date": "{date}", "context": "зачем задача"}}]
+
 Если задач нет — верни []"""
 
-    try:
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
+
+async def _call_groq(prompt: str) -> str:
+    """Вызов Groq API (бесплатный Llama 3.3)."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1024,
+                "temperature": 0.1,
+            },
         )
-        raw = response.content[0].text.strip()
-        raw = re.sub(r"^```json\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        tasks = json.loads(raw)
-        return tasks if isinstance(tasks, list) else []
-    except Exception as e:
-        logger.warning(f"Claude API error: {e}, falling back to local")
-        return extract_tasks_local(text, author, date)
+        return r.json()["choices"][0]["message"]["content"]
+
+
+async def _call_anthropic(prompt: str) -> str:
+    """Вызов Claude API."""
+    import anthropic
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    response = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.content[0].text
+
+
+def _parse_ai_response(raw: str) -> list[dict]:
+    raw = re.sub(r"^```json\s*", "", raw.strip())
+    raw = re.sub(r"\s*```$", "", raw)
+    tasks = json.loads(raw)
+    return tasks if isinstance(tasks, list) else []
+
+
+async def extract_tasks_ai(text: str, author: str, msg_date: str) -> list[dict]:
+    """Извлечение задач через AI (Groq → Claude → keyword fallback)."""
+    prompt = TASK_PROMPT.format(author=author, date=msg_date, text=text)
+
+    # 1. Groq (бесплатно)
+    if GROQ_API_KEY:
+        try:
+            raw = await _call_groq(prompt)
+            return _parse_ai_response(raw)
+        except Exception as e:
+            logger.warning(f"Groq error: {e}")
+
+    # 2. Anthropic Claude (если есть ключ)
+    if ANTHROPIC_API_KEY:
+        try:
+            raw = await _call_anthropic(prompt)
+            return _parse_ai_response(raw)
+        except Exception as e:
+            logger.warning(f"Claude error: {e}")
+
+    # 3. Keyword fallback (без API)
+    return extract_tasks_local(text, author, msg_date)
 
 
 async def add_task_to_tracker(task: dict) -> dict | None:
@@ -198,7 +238,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     logger.info(f"Potential task message from {author}: {text[:80]}")
 
-    tasks = await extract_tasks_claude(text, author, date)
+    tasks = await extract_tasks_ai(text, author, date)
 
     if not tasks:
         return
