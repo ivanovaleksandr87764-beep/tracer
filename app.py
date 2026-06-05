@@ -146,8 +146,8 @@ def send_deadline_reminders(chat_id):
 
 # ── Webhook endpoint ──────────────────────────────────────────────────────────
 
-@app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
-def webhook():
+@app.route("/webhook/<path:token>", methods=["POST"])
+def webhook(token):
     data = request.json
     if not data:
         return "ok"
