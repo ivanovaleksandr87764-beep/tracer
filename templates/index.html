@@ -16,360 +16,342 @@
       padding-bottom: 80px;
     }
 
-    /* ── Header ── */
     .header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
+      position: sticky; top: 0; z-index: 50;
       background: var(--tg-theme-bg-color, #1c1c1e);
       border-bottom: 1px solid rgba(255,255,255,0.08);
       padding: 12px 16px 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .header-left h1 { font-size: 17px; font-weight: 600; }
+    .header-left .sub { font-size: 12px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 2px; }
+    .user-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border-radius: 20px; padding: 5px 10px;
+      font-size: 12px; cursor: pointer;
+    }
+    .user-avatar {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--tg-theme-button-color, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 600;
+      color: var(--tg-theme-button-text-color, #fff);
     }
 
-    .header-title { font-size: 17px; font-weight: 600; }
-    .header-sub { font-size: 12px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 2px; }
+    /* Pages */
+    .page { display: none; }
+    .page.active { display: block; }
 
-    /* ── Stats ── */
+    /* Stats */
     .stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      padding: 12px 16px;
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 8px; padding: 12px 16px;
     }
-
     .stat-card {
       background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border-radius: 12px;
-      padding: 10px 8px;
-      text-align: center;
+      border-radius: 12px; padding: 10px 8px; text-align: center;
     }
-
     .stat-num { font-size: 22px; font-weight: 700; }
-    .stat-label { font-size: 10px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 2px; line-height: 1.2; }
+    .stat-label { font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 2px; }
     .stat-num.blue { color: #3b82f6; }
     .stat-num.yellow { color: #f59e0b; }
     .stat-num.green { color: #22c55e; }
     .stat-num.red { color: #ef4444; }
 
-    /* ── Filters ── */
+    /* Filters */
     .filters {
-      padding: 0 16px 8px;
-      display: flex;
-      gap: 6px;
-      overflow-x: auto;
-      scrollbar-width: none;
+      padding: 0 16px 8px; display: flex; gap: 6px;
+      overflow-x: auto; scrollbar-width: none;
     }
     .filters::-webkit-scrollbar { display: none; }
-
     .chip {
-      flex-shrink: 0;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 500;
+      flex-shrink: 0; padding: 6px 12px; border-radius: 20px;
+      font-size: 13px; font-weight: 500; border: none; cursor: pointer;
       background: var(--tg-theme-secondary-bg-color, #2c2c2e);
       color: var(--tg-theme-hint-color, #8e8e93);
-      border: none;
-      cursor: pointer;
-      transition: all 0.15s;
     }
     .chip.active {
       background: var(--tg-theme-button-color, #3b82f6);
       color: var(--tg-theme-button-text-color, #fff);
     }
 
-    /* ── Search ── */
+    /* Search */
     .search-wrap { padding: 0 16px 10px; }
     .search {
-      width: 100%;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border: none;
-      border-radius: 10px;
-      padding: 9px 12px;
-      color: var(--tg-theme-text-color, #fff);
-      font-size: 15px;
-      outline: none;
+      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none; border-radius: 10px; padding: 9px 12px;
+      color: var(--tg-theme-text-color,#fff); font-size: 15px; outline: none;
     }
-    .search::placeholder { color: var(--tg-theme-hint-color, #8e8e93); }
+    .search::placeholder { color: var(--tg-theme-hint-color,#8e8e93); }
 
-    /* ── Tasks ── */
+    /* Tasks */
     .tasks { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
 
     .task {
       background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border-radius: 14px;
-      padding: 12px 14px;
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      active: opacity(0.7);
+      border-radius: 14px; padding: 12px 14px;
+      display: flex; gap: 10px; align-items: flex-start;
     }
-
+    .task.mine { border-left: 3px solid var(--tg-theme-button-color, #3b82f6); }
     .task.done { opacity: 0.45; }
 
     .task-dot {
-      width: 11px; height: 11px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      margin-top: 4px;
-      cursor: pointer;
+      width: 11px; height: 11px; border-radius: 50%;
+      flex-shrink: 0; margin-top: 4px; cursor: pointer;
     }
     .dot-todo { background: #3b82f6; }
     .dot-in_progress { background: #f59e0b; }
     .dot-done { background: #22c55e; }
 
     .task-body { flex: 1; min-width: 0; }
+    .task-title { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 5px; }
+    .task.done .task-title { text-decoration: line-through; color: var(--tg-theme-hint-color,#8e8e93); }
 
-    .task-title {
-      font-size: 14px;
-      font-weight: 500;
-      line-height: 1.4;
-      margin-bottom: 5px;
-    }
-    .task.done .task-title {
-      text-decoration: line-through;
-      color: var(--tg-theme-hint-color, #8e8e93);
-    }
-
-    .task-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 4px;
-    }
-
-    .tag {
-      font-size: 11px;
-      padding: 2px 7px;
-      border-radius: 20px;
-      font-weight: 500;
-    }
-    .tag-todo { background: rgba(59,130,246,0.15); color: #60a5fa; }
-    .tag-in_progress { background: rgba(245,158,11,0.15); color: #fbbf24; }
-    .tag-done { background: rgba(34,197,94,0.15); color: #4ade80; }
-    .tag-high { background: rgba(239,68,68,0.15); color: #f87171; }
-    .tag-medium { background: rgba(245,158,11,0.12); color: #fbbf24; }
-    .tag-low { background: rgba(107,114,128,0.15); color: #9ca3af; }
-    .tag-cat { background: rgba(139,92,246,0.15); color: #a78bfa; }
-    .tag-deadline { background: rgba(239,68,68,0.12); color: #fca5a5; }
+    .task-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
+    .tag-todo { background: rgba(59,130,246,.15); color: #60a5fa; }
+    .tag-in_progress { background: rgba(245,158,11,.15); color: #fbbf24; }
+    .tag-done { background: rgba(34,197,94,.15); color: #4ade80; }
+    .tag-high { background: rgba(239,68,68,.15); color: #f87171; }
+    .tag-medium { background: rgba(245,158,11,.12); color: #fbbf24; }
+    .tag-low { background: rgba(107,114,128,.15); color: #9ca3af; }
+    .tag-cat { background: rgba(139,92,246,.15); color: #a78bfa; }
+    .tag-deadline { background: rgba(239,68,68,.12); color: #fca5a5; }
+    .tag-assignee { background: rgba(59,130,246,.12); color: #93c5fd; }
 
     .task-context {
-      font-size: 12px;
-      color: var(--tg-theme-hint-color, #8e8e93);
-      margin-top: 5px;
-      line-height: 1.4;
+      font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93);
+      margin-top: 5px; line-height: 1.4;
     }
 
-    /* ── FAB ── */
-    .fab {
-      position: fixed;
-      bottom: 20px;
-      right: 16px;
-      width: 52px; height: 52px;
-      border-radius: 50%;
-      background: var(--tg-theme-button-color, #3b82f6);
-      color: var(--tg-theme-button-text-color, #fff);
-      border: none;
-      font-size: 26px;
+    /* Team page */
+    .team-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .member-card {
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border-radius: 14px; padding: 14px;
       cursor: pointer;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 40;
     }
+    .member-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .member-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--tg-theme-button-color, #3b82f6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700;
+      color: var(--tg-theme-button-text-color, #fff);
+      flex-shrink: 0;
+    }
+    .member-name { font-size: 15px; font-weight: 600; }
+    .member-sub { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 2px; }
+    .member-bars { display: flex; gap: 6px; }
+    .bar-item {
+      flex: 1; background: rgba(255,255,255,0.06);
+      border-radius: 8px; padding: 6px 8px; text-align: center;
+    }
+    .bar-num { font-size: 16px; font-weight: 700; }
+    .bar-label { font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93); }
+    .bar-item.red .bar-num { color: #f87171; }
+    .bar-item.yellow .bar-num { color: #fbbf24; }
+    .bar-item.green .bar-num { color: #4ade80; }
 
-    /* ── Bottom sheet modal ── */
+    /* Sheet */
     .sheet-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 60;
-      align-items: flex-end;
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 60; align-items: flex-end;
     }
     .sheet-overlay.open { display: flex; }
-
     .sheet {
       background: var(--tg-theme-bg-color, #1c1c1e);
       border-radius: 20px 20px 0 0;
-      padding: 8px 16px 32px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
+      padding: 8px 16px 32px; width: 100%;
+      max-height: 90vh; overflow-y: auto;
     }
-
     .sheet-handle {
       width: 36px; height: 4px;
-      background: rgba(255,255,255,0.15);
-      border-radius: 2px;
-      margin: 8px auto 16px;
+      background: rgba(255,255,255,.15);
+      border-radius: 2px; margin: 8px auto 16px;
     }
-
     .sheet h3 { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
-
     .field { margin-bottom: 12px; }
     .field label {
-      font-size: 12px;
-      color: var(--tg-theme-hint-color, #8e8e93);
-      margin-bottom: 5px;
-      display: block;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93);
+      margin-bottom: 5px; display: block; font-weight: 500;
+      text-transform: uppercase; letter-spacing: .04em;
     }
-
     .field input, .field select, .field textarea {
-      width: 100%;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border: none;
-      border-radius: 10px;
-      padding: 10px 12px;
-      color: var(--tg-theme-text-color, #fff);
-      font-size: 15px;
-      outline: none;
-      font-family: inherit;
+      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none; border-radius: 10px; padding: 10px 12px;
+      color: var(--tg-theme-text-color,#fff); font-size: 15px;
+      outline: none; font-family: inherit;
     }
     .field select option { background: #2c2c2e; }
     .field textarea { resize: none; min-height: 70px; }
-
     .sheet-btn {
-      width: 100%;
-      padding: 14px;
-      border-radius: 12px;
-      border: none;
+      width: 100%; padding: 14px; border-radius: 12px; border: none;
       background: var(--tg-theme-button-color, #3b82f6);
-      color: var(--tg-theme-button-text-color, #fff);
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      margin-top: 4px;
+      color: var(--tg-theme-button-text-color,#fff);
+      font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 4px;
     }
 
-    .empty {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--tg-theme-hint-color, #8e8e93);
-    }
-    .empty-icon { font-size: 48px; margin-bottom: 12px; }
-    .empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: var(--tg-theme-text-color,#fff); }
-
-    /* ── Analyze sheet ── */
+    /* Analyze */
     .analyze-area {
-      width: 100%;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border: none;
-      border-radius: 10px;
-      padding: 10px 12px;
-      color: var(--tg-theme-text-color, #fff);
-      font-size: 15px;
-      outline: none;
-      font-family: inherit;
-      resize: none;
-      min-height: 100px;
-      margin-bottom: 10px;
+      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none; border-radius: 10px; padding: 10px 12px;
+      color: var(--tg-theme-text-color,#fff); font-size: 15px;
+      outline: none; font-family: inherit; resize: none; min-height: 100px; margin-bottom: 10px;
     }
     .analyze-area::placeholder { color: var(--tg-theme-hint-color,#8e8e93); }
 
+    /* Name setup */
+    .setup-screen {
+      display: none; position: fixed; inset: 0; z-index: 100;
+      background: var(--tg-theme-bg-color, #1c1c1e);
+      flex-direction: column; align-items: center; justify-content: center;
+      padding: 32px;
+    }
+    .setup-screen.show { display: flex; }
+    .setup-icon { font-size: 56px; margin-bottom: 16px; }
+    .setup-screen h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; text-align: center; }
+    .setup-screen p { font-size: 15px; color: var(--tg-theme-hint-color,#8e8e93); text-align: center; margin-bottom: 28px; }
+    .setup-input {
+      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none; border-radius: 12px; padding: 14px 16px;
+      color: var(--tg-theme-text-color,#fff); font-size: 17px; outline: none;
+      margin-bottom: 12px; text-align: center;
+    }
+    .setup-btn {
+      width: 100%; padding: 14px; border-radius: 12px; border: none;
+      background: var(--tg-theme-button-color, #3b82f6);
+      color: var(--tg-theme-button-text-color,#fff);
+      font-size: 17px; font-weight: 600; cursor: pointer;
+    }
+    .setup-skip {
+      margin-top: 12px; font-size: 14px;
+      color: var(--tg-theme-hint-color,#8e8e93); cursor: pointer;
+      background: none; border: none;
+    }
+
     .spinner {
-      display: inline-block;
-      width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Tab bar ── */
-    .tabbar {
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      display: flex;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      z-index: 40;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-    }
+    .empty { text-align: center; padding: 60px 20px; color: var(--tg-theme-hint-color,#8e8e93); }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: var(--tg-theme-text-color,#fff); }
 
+    /* Tab bar */
+    .tabbar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      display: flex; border-top: 1px solid rgba(255,255,255,.06);
+      z-index: 40; padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
     .tab {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px 0 6px;
-      font-size: 10px;
-      color: var(--tg-theme-hint-color, #8e8e93);
-      cursor: pointer;
-      border: none;
-      background: none;
-      gap: 3px;
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; padding: 8px 0 6px;
+      font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93);
+      cursor: pointer; border: none; background: none; gap: 3px;
     }
     .tab.active { color: var(--tg-theme-button-color, #3b82f6); }
     .tab-icon { font-size: 22px; }
+
+    .section-title {
+      font-size: 13px; font-weight: 600;
+      color: var(--tg-theme-hint-color,#8e8e93);
+      padding: 8px 16px 4px; text-transform: uppercase; letter-spacing: .05em;
+    }
   </style>
 </head>
 <body>
 
+<!-- Setup screen — первый вход -->
+<div class="setup-screen" id="setup">
+  <div class="setup-icon">👋</div>
+  <h2>Как тебя зовут?</h2>
+  <p>Укажи своё имя чтобы видеть только свои задачи</p>
+  <input class="setup-input" id="setup-name" type="text" placeholder="Александр"/>
+  <button class="setup-btn" onclick="saveName()">Готово</button>
+  <button class="setup-skip" onclick="skipSetup()">Пропустить</button>
+</div>
+
 <div class="header">
-  <div class="header-title">Трекер задач</div>
-  <div class="header-sub" id="header-sub">Загрузка...</div>
+  <div class="header-left">
+    <h1>Трекер задач</h1>
+    <div class="sub" id="header-sub">Загрузка...</div>
+  </div>
+  <div class="user-badge" onclick="showSetup()" id="user-badge" style="display:none">
+    <div class="user-avatar" id="user-avatar">?</div>
+    <span id="user-name-badge">Я</span>
+  </div>
 </div>
 
-<!-- Stats -->
-<div class="stats">
-  <div class="stat-card"><div class="stat-num" id="s-total">—</div><div class="stat-label">Всего</div></div>
-  <div class="stat-card"><div class="stat-num blue" id="s-todo">—</div><div class="stat-label">К работе</div></div>
-  <div class="stat-card"><div class="stat-num yellow" id="s-inprogress">—</div><div class="stat-label">В работе</div></div>
-  <div class="stat-card"><div class="stat-num green" id="s-done">—</div><div class="stat-label">Готово</div></div>
+<!-- Page: Все задачи -->
+<div class="page active" id="page-all">
+  <div class="stats">
+    <div class="stat-card"><div class="stat-num" id="s-total">—</div><div class="stat-label">Всего</div></div>
+    <div class="stat-card"><div class="stat-num blue" id="s-todo">—</div><div class="stat-label">К работе</div></div>
+    <div class="stat-card"><div class="stat-num yellow" id="s-inprogress">—</div><div class="stat-label">В работе</div></div>
+    <div class="stat-card"><div class="stat-num green" id="s-done">—</div><div class="stat-label">Готово</div></div>
+  </div>
+  <div class="filters" id="status-filters">
+    <button class="chip active" onclick="setStatus('',this)">Все</button>
+    <button class="chip" onclick="setStatus('todo',this)">🔵 К работе</button>
+    <button class="chip" onclick="setStatus('in_progress',this)">🟡 В работе</button>
+    <button class="chip" onclick="setStatus('done',this)">🟢 Готово</button>
+  </div>
+  <div class="filters" id="cat-filters">
+    <button class="chip active" onclick="setCat('',this)">Все</button>
+    <button class="chip" onclick="setCat('обучение',this)">📚 Обучение</button>
+    <button class="chip" onclick="setCat('продукт',this)">🛠 Продукт</button>
+    <button class="chip" onclick="setCat('контент',this)">✍️ Контент</button>
+    <button class="chip" onclick="setCat('маркетинг',this)">📣 Маркетинг</button>
+    <button class="chip" onclick="setCat('продажи',this)">💰 Продажи</button>
+    <button class="chip" onclick="setCat('операционка',this)">⚙️ Операционка</button>
+  </div>
+  <div class="search-wrap">
+    <input class="search" type="text" id="search" placeholder="🔍 Поиск..." oninput="loadAllTasks()"/>
+  </div>
+  <div class="tasks" id="tasks-all"></div>
 </div>
 
-<!-- Status filters -->
-<div class="filters" id="status-filters">
-  <button class="chip active" onclick="setStatus('',this)">Все</button>
-  <button class="chip" onclick="setStatus('todo',this)">🔵 К работе</button>
-  <button class="chip" onclick="setStatus('in_progress',this)">🟡 В работе</button>
-  <button class="chip" onclick="setStatus('done',this)">🟢 Готово</button>
+<!-- Page: Мои задачи -->
+<div class="page" id="page-my">
+  <div class="filters" id="my-status-filters">
+    <button class="chip active" onclick="setMyStatus('',this)">Все</button>
+    <button class="chip" onclick="setMyStatus('todo',this)">🔵 К работе</button>
+    <button class="chip" onclick="setMyStatus('in_progress',this)">🟡 В работе</button>
+    <button class="chip" onclick="setMyStatus('done',this)">🟢 Готово</button>
+  </div>
+  <div id="my-empty" class="empty" style="display:none">
+    <div class="empty-icon">🙌</div>
+    <h3>Нет задач</h3>
+    <p>Всё сделано или задачи ещё не назначены</p>
+  </div>
+  <div class="tasks" id="tasks-my"></div>
 </div>
 
-<!-- Category filters -->
-<div class="filters" id="cat-filters">
-  <button class="chip active" onclick="setCat('',this)">Все</button>
-  <button class="chip" onclick="setCat('обучение',this)">📚 Обучение</button>
-  <button class="chip" onclick="setCat('продукт',this)">🛠 Продукт</button>
-  <button class="chip" onclick="setCat('контент',this)">✍️ Контент</button>
-  <button class="chip" onclick="setCat('маркетинг',this)">📣 Маркетинг</button>
-  <button class="chip" onclick="setCat('продажи',this)">💰 Продажи</button>
-  <button class="chip" onclick="setCat('операционка',this)">⚙️ Операционка</button>
+<!-- Page: Команда -->
+<div class="page" id="page-team">
+  <div class="team-list" id="team-list"></div>
 </div>
 
-<!-- Search -->
-<div class="search-wrap">
-  <input class="search" type="text" id="search" placeholder="🔍 Поиск..." oninput="loadTasks()"/>
-</div>
-
-<!-- Tasks list -->
-<div class="tasks" id="tasks"></div>
-
-<!-- Tab bar -->
-<div class="tabbar">
-  <button class="tab active" onclick="showView('tasks')">
-    <span class="tab-icon">📋</span>Задачи
-  </button>
-  <button class="tab" onclick="showView('analyze')">
-    <span class="tab-icon">🤖</span>Анализ
-  </button>
-  <button class="tab" onclick="showView('add')">
-    <span class="tab-icon">➕</span>Добавить
-  </button>
-</div>
-
-<!-- Sheet: Добавить задачу -->
-<div class="sheet-overlay" id="sheet-add">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <h3>Новая задача</h3>
+<!-- Page: Анализ + Добавить -->
+<div class="page" id="page-add">
+  <!-- Анализ сообщения -->
+  <div style="padding: 16px 16px 0">
+    <div class="section-title" style="padding:0 0 8px">🤖 Анализ сообщения</div>
+    <textarea class="analyze-area" id="analyze-text" placeholder="Вставь сообщение из чата — бот найдёт задачи автоматически..."></textarea>
+    <input type="text" id="analyze-author" placeholder="Автор (необязательно)"
+      style="width:100%;background:var(--tg-theme-secondary-bg-color,#2c2c2e);border:none;border-radius:10px;padding:10px 12px;color:var(--tg-theme-text-color,#fff);font-size:15px;outline:none;margin-bottom:10px;font-family:inherit"/>
+    <button class="sheet-btn" id="analyze-btn" onclick="analyzeMsg()" style="margin-bottom:20px">Найти задачи</button>
+  </div>
+  <!-- Добавить вручную -->
+  <div style="padding: 0 16px">
+    <div class="section-title" style="padding:0 0 8px">➕ Добавить вручную</div>
     <div class="field"><label>Название</label><input type="text" id="f-title" placeholder="Что нужно сделать?"/></div>
     <div class="field"><label>Исполнитель</label><input type="text" id="f-assignee" placeholder="Имя"/></div>
     <div class="field"><label>Дедлайн</label><input type="text" id="f-deadline" placeholder="до конца недели / 10 июня..."/></div>
@@ -397,42 +379,107 @@
   </div>
 </div>
 
-<!-- Sheet: Анализ сообщения -->
-<div class="sheet-overlay" id="sheet-analyze">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <h3>🤖 Анализ сообщения</h3>
-    <textarea class="analyze-area" id="analyze-text" placeholder="Вставь сообщение из чата — бот найдёт задачи автоматически..."></textarea>
-    <input type="text" id="analyze-author" placeholder="Автор (необязательно)"
-      style="width:100%;background:var(--tg-theme-secondary-bg-color,#2c2c2e);border:none;border-radius:10px;padding:10px 12px;color:var(--tg-theme-text-color,#fff);font-size:15px;outline:none;margin-bottom:10px;"/>
-    <button class="sheet-btn" id="analyze-btn" onclick="analyzeMsg()">Найти задачи</button>
-  </div>
+<!-- Tab bar -->
+<div class="tabbar">
+  <button class="tab active" onclick="showPage('all',this)">
+    <span class="tab-icon">📋</span>Все
+  </button>
+  <button class="tab" onclick="showPage('my',this)">
+    <span class="tab-icon">👤</span>Мои
+  </button>
+  <button class="tab" onclick="showPage('team',this)">
+    <span class="tab-icon">👥</span>Команда
+  </button>
+  <button class="tab" onclick="showPage('add',this)">
+    <span class="tab-icon">➕</span>Добавить
+  </button>
 </div>
 
 <script>
-  // ── Telegram WebApp init ──────────────────────────────────────────────
   const tg = window.Telegram?.WebApp;
-  if (tg) {
-    tg.ready();
-    tg.expand();
-    tg.setHeaderColor('bg_color');
-  }
+  if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor?.('bg_color'); }
 
-  // ── State ─────────────────────────────────────────────────────────────
+  const STATUS_LABELS = { todo:'К работе', in_progress:'В работе', done:'Готово' };
+  const PRIORITY_LABELS = { high:'Высокий', medium:'Средний', low:'Низкий' };
+  const STATUS_NEXT = { todo:'in_progress', in_progress:'done', done:'todo' };
+
   let filterStatus = '';
   let filterCat = '';
+  let myFilterStatus = '';
+  let currentPage = 'all';
+  let myName = '';
+  let allTasksCache = [];
 
-  const STATUS_LABELS = { todo: 'К работе', in_progress: 'В работе', done: 'Готово' };
-  const PRIORITY_LABELS = { high: 'Высокий', medium: 'Средний', low: 'Низкий' };
-  const STATUS_NEXT = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
+  // ── User name ────────────────────────────────────────────────────────────
+  function loadUser() {
+    myName = localStorage.getItem('myName') || '';
 
-  // ── API ───────────────────────────────────────────────────────────────
+    // Попробуем получить имя из Telegram
+    const tgName = tg?.initDataUnsafe?.user?.first_name || '';
+
+    if (!myName && !tgName) {
+      // Показываем экран настройки при первом входе
+      document.getElementById('setup').classList.add('show');
+      return;
+    }
+
+    if (!myName && tgName) {
+      myName = tgName;
+      localStorage.setItem('myName', myName);
+    }
+
+    applyUser();
+  }
+
+  function applyUser() {
+    if (!myName) return;
+    const badge = document.getElementById('user-badge');
+    badge.style.display = 'flex';
+    document.getElementById('user-name-badge').textContent = myName.split(' ')[0];
+    document.getElementById('user-avatar').textContent = myName[0].toUpperCase();
+    // Подставить в поле исполнителя
+    document.getElementById('f-assignee').value = myName;
+  }
+
+  function saveName() {
+    const name = document.getElementById('setup-name').value.trim();
+    if (!name) return;
+    myName = name;
+    localStorage.setItem('myName', name);
+    document.getElementById('setup').classList.remove('show');
+    applyUser();
+    loadMyTasks();
+  }
+
+  function skipSetup() {
+    document.getElementById('setup').classList.remove('show');
+  }
+
+  function showSetup() {
+    document.getElementById('setup-name').value = myName;
+    document.getElementById('setup').classList.add('show');
+  }
+
+  // ── Pages ─────────────────────────────────────────────────────────────────
+  function showPage(name, el) {
+    currentPage = name;
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + name).classList.add('active');
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+
+    if (name === 'all') loadAllTasks();
+    if (name === 'my') loadMyTasks();
+    if (name === 'team') loadTeam();
+  }
+
+  // ── API ───────────────────────────────────────────────────────────────────
   async function api(path, opts={}) {
     const r = await fetch(path, { headers: {'Content-Type':'application/json'}, ...opts });
     return r.json();
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────
+  // ── Stats ──────────────────────────────────────────────────────────────────
   async function loadStats() {
     const s = await api('/api/stats');
     document.getElementById('s-total').textContent = s.total;
@@ -440,98 +487,169 @@
     document.getElementById('s-inprogress').textContent = s.in_progress;
     document.getElementById('s-done').textContent = s.done;
     document.getElementById('header-sub').textContent =
-      `${s.total} задач · ${s.high || 0} срочных`;
+      `${s.total} задач · ${s.high||0} срочных`;
   }
 
-  // ── Tasks ─────────────────────────────────────────────────────────────
-  async function loadTasks() {
+  // ── All tasks ──────────────────────────────────────────────────────────────
+  async function loadAllTasks() {
     const p = new URLSearchParams();
     if (filterStatus) p.set('status', filterStatus);
     if (filterCat) p.set('category', filterCat);
     const q = document.getElementById('search').value;
     if (q) p.set('search', q);
-
     const tasks = await api('/api/tasks?' + p);
-    renderTasks(tasks);
+    allTasksCache = tasks;
+    renderTasks(tasks, 'tasks-all', false);
   }
 
-  function renderTasks(tasks) {
-    const el = document.getElementById('tasks');
-    if (!tasks.length) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Задач нет</h3><p>Измени фильтр или добавь новую</p></div>`;
-      return;
-    }
-    el.innerHTML = tasks.map(t => `
-      <div class="task ${t.status==='done'?'done':''}" id="card-${t.id}">
-        <div class="task-dot dot-${t.status}" onclick="cycleStatus(${t.id},'${t.status}')"></div>
-        <div class="task-body" onclick="openTask(${t.id})">
-          <div class="task-title">${esc(t.title)}</div>
-          <div class="task-tags">
-            <span class="tag tag-${t.status}">${STATUS_LABELS[t.status]||t.status}</span>
-            <span class="tag tag-${t.priority}">${PRIORITY_LABELS[t.priority]||t.priority}</span>
-            ${t.category?`<span class="tag tag-cat">${esc(t.category)}</span>`:''}
-            ${t.deadline?`<span class="tag tag-deadline">📅 ${esc(t.deadline)}</span>`:''}
-            ${t.assignee?`<span class="tag tag-cat">👤 ${esc(t.assignee)}</span>`:''}
-          </div>
-          ${t.context?`<div class="task-context">${esc(t.context)}</div>`:''}
-        </div>
-      </div>
-    `).join('');
-  }
-
-  async function cycleStatus(id, current) {
-    const next = STATUS_NEXT[current] || 'todo';
-    await api(`/api/tasks/${id}`, { method:'PATCH', body: JSON.stringify({status: next}) });
-    if (tg) tg.HapticFeedback?.impactOccurred('light');
-    loadTasks(); loadStats();
-  }
-
-  function openTask(id) {
-    // В будущем — детальный экран задачи
-  }
-
-  // ── Filters ───────────────────────────────────────────────────────────
   function setStatus(val, el) {
     filterStatus = val;
     document.querySelectorAll('#status-filters .chip').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
-    loadTasks();
+    loadAllTasks();
   }
 
   function setCat(val, el) {
     filterCat = val;
     document.querySelectorAll('#cat-filters .chip').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
-    loadTasks();
+    loadAllTasks();
   }
 
-  // ── Views / sheets ────────────────────────────────────────────────────
-  function showView(view) {
-    document.querySelectorAll('.tab').forEach((t,i) => {
-      t.classList.toggle('active', ['tasks','analyze','add'][i] === view);
+  // ── My tasks ───────────────────────────────────────────────────────────────
+  async function loadMyTasks() {
+    if (!myName) {
+      document.getElementById('tasks-my').innerHTML = '';
+      document.getElementById('my-empty').style.display = 'block';
+      document.getElementById('my-empty').querySelector('h3').textContent = 'Укажи своё имя';
+      document.getElementById('my-empty').querySelector('p').textContent = 'Нажми на аватар в шапке';
+      return;
+    }
+
+    const all = await api('/api/tasks');
+    const nameLower = myName.toLowerCase();
+    let mine = all.filter(t =>
+      t.assignee && t.assignee.toLowerCase().includes(nameLower.split(' ')[0])
+    );
+
+    if (myFilterStatus) mine = mine.filter(t => t.status === myFilterStatus);
+
+    const empty = document.getElementById('my-empty');
+    if (!mine.length) {
+      empty.style.display = 'block';
+      document.getElementById('tasks-my').innerHTML = '';
+    } else {
+      empty.style.display = 'none';
+      renderTasks(mine, 'tasks-my', true);
+    }
+  }
+
+  function setMyStatus(val, el) {
+    myFilterStatus = val;
+    document.querySelectorAll('#my-status-filters .chip').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    loadMyTasks();
+  }
+
+  // ── Team ───────────────────────────────────────────────────────────────────
+  async function loadTeam() {
+    const tasks = await api('/api/tasks');
+    const byAssignee = {};
+
+    tasks.forEach(t => {
+      const a = t.assignee || '—';
+      if (!byAssignee[a]) byAssignee[a] = { todo:0, in_progress:0, done:0, high:0, tasks:[] };
+      byAssignee[a][t.status] = (byAssignee[a][t.status] || 0) + 1;
+      if (t.priority === 'high' && t.status !== 'done') byAssignee[a].high++;
+      byAssignee[a].tasks.push(t);
     });
-    if (view === 'add') openSheet('sheet-add');
-    else if (view === 'analyze') openSheet('sheet-analyze');
+
+    // Сортируем по количеству активных задач
+    const sorted = Object.entries(byAssignee)
+      .filter(([name]) => name !== '—')
+      .sort((a,b) => (b[1].todo + b[1].in_progress) - (a[1].todo + a[1].in_progress));
+
+    const el = document.getElementById('team-list');
+    if (!sorted.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><h3>Нет данных</h3></div>';
+      return;
+    }
+
+    el.innerHTML = sorted.map(([name, data]) => {
+      const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      const total = data.todo + data.in_progress + data.done;
+      const isMe = myName && name.toLowerCase().includes(myName.toLowerCase().split(' ')[0]);
+      return `
+        <div class="member-card" onclick="filterByMember('${esc(name)}')">
+          <div class="member-header">
+            <div class="member-avatar" style="${isMe?'background:#22c55e':''}">${initials}</div>
+            <div>
+              <div class="member-name">${esc(name)} ${isMe?'(я)':''}</div>
+              <div class="member-sub">${total} задач</div>
+            </div>
+            ${data.high ? `<div style="margin-left:auto"><span class="tag tag-high">🔴 ${data.high} срочных</span></div>` : ''}
+          </div>
+          <div class="member-bars">
+            <div class="bar-item red"><div class="bar-num">${data.todo}</div><div class="bar-label">К работе</div></div>
+            <div class="bar-item yellow"><div class="bar-num">${data.in_progress}</div><div class="bar-label">В работе</div></div>
+            <div class="bar-item green"><div class="bar-num">${data.done}</div><div class="bar-label">Готово</div></div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
-  function openSheet(id) {
-    document.getElementById(id).classList.add('open');
-    document.getElementById(id).onclick = e => {
-      if (e.target === document.getElementById(id)) closeSheets();
-    };
+  function filterByMember(name) {
+    // Переключаемся на вкладку "Все" с фильтром по участнику
+    showPage('all', document.querySelectorAll('.tab')[0]);
+    // Ставим поиск по имени
+    document.getElementById('search').value = name;
+    loadAllTasks();
+    tg?.HapticFeedback?.impactOccurred('light');
   }
 
-  function closeSheets() {
-    document.querySelectorAll('.sheet-overlay').forEach(s => s.classList.remove('open'));
-    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  // ── Render tasks ────────────────────────────────────────────────────────────
+  function renderTasks(tasks, containerId, highlightMine) {
+    const el = document.getElementById(containerId);
+    if (!tasks.length) {
+      el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Задач нет</h3><p>Измени фильтр или добавь новую</p></div>`;
+      return;
+    }
+    const nameLower = myName.toLowerCase().split(' ')[0];
+    el.innerHTML = tasks.map(t => {
+      const mine = highlightMine || (myName && t.assignee?.toLowerCase().includes(nameLower));
+      return `
+        <div class="task ${t.status==='done'?'done':''} ${mine&&!highlightMine?'mine':''}" id="card-${t.id}">
+          <div class="task-dot dot-${t.status}" onclick="cycleStatus(${t.id},'${t.status}')"></div>
+          <div class="task-body">
+            <div class="task-title">${esc(t.title)}</div>
+            <div class="task-tags">
+              <span class="tag tag-${t.status}">${STATUS_LABELS[t.status]||t.status}</span>
+              <span class="tag tag-${t.priority}">${PRIORITY_LABELS[t.priority]||t.priority}</span>
+              ${t.category?`<span class="tag tag-cat">${esc(t.category)}</span>`:''}
+              ${t.deadline?`<span class="tag tag-deadline">📅 ${esc(t.deadline)}</span>`:''}
+              ${t.assignee?`<span class="tag tag-assignee">👤 ${esc(t.assignee)}</span>`:''}
+            </div>
+            ${t.context?`<div class="task-context">${esc(t.context)}</div>`:''}
+          </div>
+        </div>`;
+    }).join('');
   }
 
-  // ── Save task ─────────────────────────────────────────────────────────
+  // ── Cycle status ───────────────────────────────────────────────────────────
+  async function cycleStatus(id, current) {
+    const next = STATUS_NEXT[current] || 'todo';
+    await api(`/api/tasks/${id}`, { method:'PATCH', body: JSON.stringify({status: next}) });
+    tg?.HapticFeedback?.impactOccurred('light');
+    if (currentPage === 'all') { loadAllTasks(); loadStats(); }
+    if (currentPage === 'my') { loadMyTasks(); loadStats(); }
+  }
+
+  // ── Save task ──────────────────────────────────────────────────────────────
   async function saveTask() {
     const title = document.getElementById('f-title').value.trim();
     if (!title) { tg?.HapticFeedback?.notificationOccurred('error'); return; }
-
-    const data = {
+    await api('/api/tasks', { method:'POST', body: JSON.stringify({
       title,
       assignee: document.getElementById('f-assignee').value,
       deadline: document.getElementById('f-deadline').value || null,
@@ -539,45 +657,29 @@
       category: document.getElementById('f-category').value,
       context: document.getElementById('f-context').value,
       status: 'todo',
-    };
-
-    await api('/api/tasks', { method:'POST', body: JSON.stringify(data) });
+    })});
     tg?.HapticFeedback?.notificationOccurred('success');
-    closeSheets();
-    loadTasks(); loadStats();
-
-    // Очищаем форму
-    ['f-title','f-assignee','f-deadline','f-context'].forEach(id => document.getElementById(id).value='');
+    ['f-title','f-deadline','f-context'].forEach(id => document.getElementById(id).value='');
+    loadStats();
+    if (tg) tg.showPopup?.({ title:'✅ Готово', message:'Задача добавлена', buttons:[{type:'ok'}] });
   }
 
-  // ── Analyze message ───────────────────────────────────────────────────
+  // ── Analyze ────────────────────────────────────────────────────────────────
   async function analyzeMsg() {
     const text = document.getElementById('analyze-text').value.trim();
     if (!text) return;
-
     const btn = document.getElementById('analyze-btn');
     btn.innerHTML = '<span class="spinner"></span>Анализирую...';
     btn.disabled = true;
-
     try {
-      const tasks = await api('/api/analyze', {
-        method: 'POST',
-        body: JSON.stringify({
-          text,
-          author: document.getElementById('analyze-author').value || '',
-        }),
-      });
+      const tasks = await api('/api/analyze', { method:'POST', body: JSON.stringify({
+        text, author: document.getElementById('analyze-author').value || myName || '',
+      })});
       tg?.HapticFeedback?.notificationOccurred('success');
-      if (tg) {
-        tg.showPopup({ title: '✅ Готово', message: `Найдено задач: ${tasks.length}`, buttons: [{type:'ok'}] });
-      }
       document.getElementById('analyze-text').value = '';
-      closeSheets();
-      loadTasks(); loadStats();
-    } catch(e) {
-      tg?.HapticFeedback?.notificationOccurred('error');
-    }
-
+      loadStats();
+      tg?.showPopup?.({ title:'✅ Готово', message:`Найдено задач: ${tasks.length}`, buttons:[{type:'ok'}] });
+    } catch(e) { tg?.HapticFeedback?.notificationOccurred('error'); }
     btn.innerHTML = 'Найти задачи';
     btn.disabled = false;
   }
@@ -586,9 +688,10 @@
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadUser();
   loadStats();
-  loadTasks();
+  loadAllTasks();
 </script>
 </body>
 </html>
