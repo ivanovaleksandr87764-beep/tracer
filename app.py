@@ -63,7 +63,8 @@ def parse_json_response(raw: str) -> list | dict:
     return json.loads(raw)
 
 
-SMART_PROMPT = """Ты стратегический помощник команды онлайн-курса. Думаешь не как «сделай задачу», а «какой результат получим».
+SMART_PROMPT = """Ты не секретарь который пишет задачи под диктовку.
+Ты стратегический помощник команды онлайн-курса. Думаешь как сильный консультант: «А зачем это вообще? Нет ли способа лучше? Не отвлекает ли это от главной цели?»
 
 Сообщение от {author} ({date}):
 {text}
@@ -72,14 +73,16 @@ SMART_PROMPT = """Ты стратегический помощник коман�
 {goals}
 
 Твоя задача:
-1. Извлеки конкретные действия из сообщения
-2. Каждое действие привяжи к существующей цели по смыслу (укажи goal_id) ИЛИ предложи новую цель
-3. Каждая новая цель должна быть SMART — измеримый результат, не процесс
+1. Понять что человек предлагает сделать
+2. КРИТИЧЕСКИ оценить: это правда движет к цели или просто суета?
+3. Если задача годная — привязать к существующей цели или создать новую (SMART, с метрикой)
+4. Если есть способ эффективнее — предложить альтернативу
+5. Если задача сомнительная — задать встречный вопрос или флагнуть
 
 Верни ТОЛЬКО валидный JSON (без markdown):
 {{
   "new_goals": [
-    {{"title": "цель в формате 'глагол + измеримый результат'", "metric": "число или конкретный результат", "deadline": "дедлайн или null", "category": "обучение/маркетинг/продажи/контент/операционка/продукт"}}
+    {{"title": "цель: глагол + измеримый результат", "metric": "число/конкретный факт", "deadline": "дедлайн или null", "category": "обучение/маркетинг/продажи/контент/операционка/продукт"}}
   ],
   "actions": [
     {{
@@ -92,14 +95,17 @@ SMART_PROMPT = """Ты стратегический помощник коман�
       "category": "обучение/маркетинг/продажи/контент/операционка/продукт"
     }}
   ],
-  "comment": "1 короткое предложение: к какой цели и почему, либо что новая цель"
+  "thinking": "Что я думаю об этой задаче (2-3 предложения, по делу, без воды). Например: 'Это под цель X. Но эффективнее сделать Y вместо предложенного. Или вообще пропустить, потому что Z'",
+  "alternative": "Если есть способ эффективнее — конкретно опиши его. Иначе пустая строка.",
+  "doubt": "Если есть сомнение нужна ли вообще задача — напиши почему. Иначе пустая строка."
 }}
 
 Правила:
-- Если действие подходит к существующей цели — поставь её goal_id, new_goal_index=null
-- Если нет подходящей цели — создай новую в new_goals и в action укажи new_goal_index (индекс в массиве)
-- Не дублируй задачи которые уже могут быть — отметь это в comment
-- Если задач нет — верни {{"new_goals":[],"actions":[],"comment":""}}"""
+- Не льсти и не соглашайся со всем подряд. Если задача =суета — так и скажи в doubt.
+- Альтернатива должна быть КОНКРЕТНОЙ ("вместо обзвонить 50 лидов — сделать 1 пост который их сам соберёт"), не общими словами.
+- Если в сообщении уже описана задача которая дублирует существующую — поставь doubt = "это похоже на задачу #N (название)".
+- Метрика обязательна для новой цели. Без метрики — это процесс, а не цель.
+- Если задач/целей нет — верни пустые массивы с thinking="не вижу конкретного действия"."""
 
 
 def smart_extract(text, author, msg_date):
@@ -136,9 +142,12 @@ def process_message(text, author, msg_date, chat_id, msg_id):
 
     actions = result.get("actions", [])
     new_goals = result.get("new_goals", [])
-    comment = result.get("comment", "")
+    thinking = result.get("thinking", "")
+    alternative = result.get("alternative", "")
+    doubt = result.get("doubt", "")
 
-    if not actions and not new_goals:
+    # Даже если задач нет — если есть сомнение или альтернатива, ответим
+    if not actions and not new_goals and not (doubt or alternative):
         return
 
     # Создаём новые цели
@@ -177,21 +186,22 @@ def process_message(text, author, msg_date, chat_id, msg_id):
 
     # Формируем красивый ответ
     msg_parts = []
+
     if created_goals:
-        msg_parts.append("🎯 Создал новые цели:")
+        msg_parts.append("🎯 Новые цели:")
         for g in created_goals:
             line = f"• {g['title']}"
             if g.get("metric"):
                 line += f"\n  📊 {g['metric']}"
+            if g.get("deadline"):
+                line += f"\n  ⏰ {g['deadline']}"
             msg_parts.append(line)
         msg_parts.append("")
 
     if saved_tasks:
-        # Группируем по цели
         by_goal = {}
         for t in saved_tasks:
             by_goal.setdefault(t.get("goal_id"), []).append(t)
-
         goals_map = {g["id"]: g for g in db.get_goals()}
 
         for gid, tasks in by_goal.items():
@@ -205,11 +215,18 @@ def process_message(text, author, msg_date, chat_id, msg_id):
                 if t.get("deadline"):
                     line += f" (до {t['deadline']})"
                 msg_parts.append(line)
+        msg_parts.append("")
 
-    if comment:
-        msg_parts.append(f"\n💡 {comment}")
+    if thinking:
+        msg_parts.append(f"🧠 {thinking}")
 
-    msg_parts.append(f"\n{TRACKER_URL}")
+    if alternative:
+        msg_parts.append(f"\n💡 Альтернатива: {alternative}")
+
+    if doubt:
+        msg_parts.append(f"\n⚠️ Сомнение: {doubt}")
+
+    msg_parts.append(f"\n🔗 {TRACKER_URL}")
 
     tg_send(chat_id, "\n".join(msg_parts), reply_to=msg_id)
 
