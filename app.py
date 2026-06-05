@@ -45,16 +45,22 @@ def tg_send(chat_id, text, reply_to=None):
                json=payload, timeout=10)
 
 
+AI_MODEL = os.environ.get("AI_MODEL", "deepseek-r1-distill-llama-70b")
+
+
 def call_groq(prompt: str, max_tokens: int = 1024, temperature: float = 0.1) -> str:
     r = httpx.post(
         "https://api.groq.com/openai/v1/chat/completions",
         headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-        json={"model": "llama-3.3-70b-versatile",
+        json={"model": AI_MODEL,
               "messages": [{"role": "user", "content": prompt}],
               "max_tokens": max_tokens, "temperature": temperature},
-        timeout=45,
+        timeout=60,
     )
-    return r.json()["choices"][0]["message"]["content"].strip()
+    content = r.json()["choices"][0]["message"]["content"].strip()
+    # DeepSeek R1 модели возвращают <think>...</think> блок — убираем его
+    content = re.sub(r"<think>.*?</think>\s*", "", content, flags=re.DOTALL)
+    return content.strip()
 
 
 def parse_json_response(raw: str) -> list | dict:
