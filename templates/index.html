@@ -601,7 +601,7 @@
       const tasksHtml = tasks.slice(0,5).map(t => `
         <div class="member-task ${t.status==='done'?'done':''}"
              onclick="openStatus(${t.id},'${t.status}',\`${esc(t.title)}\`,\`${esc(t._goalTitle||'')}\`)">
-          <div class="mt-dot" style="background:${{todo:'#3b82f6',in_progress:'#f59e0b',done:'#22c55e'}[t.status]||'#6b7280'}"></div>
+          <div class="mt-dot" style="background:${statusColor(t.status)}"></div>
           <div class="mt-title" style="flex:1;font-size:13px">${esc(t.title)}</div>
           ${t.priority==='high'&&t.status!=='done'?'<span style="font-size:10px;color:#f87171">🔴</span>':''}
         </div>`).join('');
@@ -714,6 +714,10 @@
     } catch(e) { tg?.HapticFeedback?.notificationOccurred('error'); }
     btn.innerHTML = 'Найти задачи';
     btn.disabled = false;
+  }
+
+  function statusColor(s) {
+    return {todo:'#3b82f6',in_progress:'#f59e0b',done:'#22c55e'}[s] || '#6b7280';
   }
 
   function esc(s) {
