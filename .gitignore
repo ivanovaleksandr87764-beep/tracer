@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+messages.json
+messages2.json
+preview.py
+parse_chat.py
+run_analysis.py
