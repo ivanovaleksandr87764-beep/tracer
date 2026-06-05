@@ -38,14 +38,24 @@ TASK_PROMPT = """Ты извлекаешь задачи из рабочих пе
 
 # ── Telegram helpers ─────────────────────────────────────────────────────────
 
-def tg_send(chat_id, text, reply_to=None):
+def tg_send(chat_id, text, reply_to=None, markdown=True):
     if not BOT_TOKEN:
         return
     payload = {"chat_id": chat_id, "text": text}
+    if markdown:
+        payload["parse_mode"] = "Markdown"
     if reply_to:
         payload["reply_to_message_id"] = reply_to
-    httpx.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-               json=payload, timeout=10)
+    try:
+        r = httpx.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                       json=payload, timeout=10)
+        # Если markdown сломал — пробуем без него
+        if markdown and r.status_code != 200:
+            payload.pop("parse_mode", None)
+            httpx.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+                       json=payload, timeout=10)
+    except Exception as e:
+        logger.warning(f"tg_send error: {e}")
 
 
 AI_MODEL = os.environ.get("AI_MODEL", "deepseek-r1-distill-llama-70b")
@@ -354,8 +364,10 @@ def process_message(text, author, msg_date, chat_id, msg_id):
 
 
 def send_deadline_reminders(chat_id):
-    """Проверяет дедлайны и шлёт напоминание."""
+    """Проверяет дедлайны и шлёт напоминание сгруппированное по целям."""
     tasks = db.get_tasks()
+    goals = db.get_goals()
+    goals_map = {g["id"]: g for g in goals}
     active = [t for t in tasks if t.get("status") != "done"]
     today = date.today()
 
@@ -382,29 +394,54 @@ def send_deadline_reminders(chat_id):
                 except: pass
         return None
 
-    overdue, due_today, due_soon = [], [], []
+    # Группируем по статусу срочности
+    buckets = {"overdue": [], "today": [], "soon": []}
     for t in active:
         dl = parse_dl(t.get("deadline", ""))
         if not dl: continue
-        if dl < today: overdue.append(t)
-        elif dl == today: due_today.append(t)
-        elif dl <= today + timedelta(days=3): due_soon.append(t)
+        if dl < today: buckets["overdue"].append(t)
+        elif dl == today: buckets["today"].append(t)
+        elif dl <= today + timedelta(days=3): buckets["soon"].append(t)
+
+    def group_by_goal(tasks_list):
+        by_goal = {}
+        for t in tasks_list:
+            gid = t.get("goal_id")
+            by_goal.setdefault(gid, []).append(t)
+        return by_goal
+
+    def format_bucket(label_icon, label, tasks_list):
+        if not tasks_list:
+            return ""
+        by_goal = group_by_goal(tasks_list)
+        lines = [f"\n{label_icon} *{label}*"]
+        for gid, ts in by_goal.items():
+            goal = goals_map.get(gid)
+            if goal:
+                title = goal["title"]
+                metric = goal.get("metric")
+                lines.append(f"\n🎯 *{title}*" + (f"\n   📊 {metric}" if metric else ""))
+            else:
+                lines.append("\n📝 *Без цели*")
+            for t in ts:
+                assignee = t.get("assignee", "—")
+                lines.append(f"   • {t['title']}")
+                lines.append(f"     👤 {assignee}")
+        return "\n".join(lines)
 
     parts = []
-    if overdue:
-        lines = "\n".join(f"🔴 {t['title'][:50]} ({t.get('assignee','')})" for t in overdue)
-        parts.append(f"🚨 ПРОСРОЧЕНО:\n{lines}")
-    if due_today:
-        lines = "\n".join(f"🟡 {t['title'][:50]} ({t.get('assignee','')})" for t in due_today)
-        parts.append(f"⏰ Дедлайн СЕГОДНЯ:\n{lines}")
-    if due_soon:
-        lines = "\n".join(f"🟠 {t['title'][:50]} ({t.get('assignee','')})" for t in due_soon)
-        parts.append(f"📅 Скоро (3 дня):\n{lines}")
+    if buckets["overdue"]:
+        parts.append(format_bucket("🚨", f"ПРОСРОЧЕНО ({len(buckets['overdue'])})", buckets["overdue"]))
+    if buckets["today"]:
+        parts.append(format_bucket("⏰", f"Сегодня дедлайн ({len(buckets['today'])})", buckets["today"]))
+    if buckets["soon"]:
+        parts.append(format_bucket("📅", f"Скоро 3 дня ({len(buckets['soon'])})", buckets["soon"]))
 
     if parts:
-        tg_send(chat_id, "\n\n".join(parts) + f"\n\n{TRACKER_URL}")
+        msg = "📊 *Сводка по дедлайнам*\n" + "".join(parts) + f"\n\n🔗 {TRACKER_URL}"
+        tg_send(chat_id, msg)
     else:
-        tg_send(chat_id, f"✅ Просроченных задач нет!\n\n{TRACKER_URL}")
+        tg_send(chat_id, f"✅ Горящих задач нет — все дедлайны под контролем!\n\n🔗 {TRACKER_URL}")
 
 
 # ── Webhook endpoint ──────────────────────────────────────────────────────────
