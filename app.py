@@ -45,49 +45,173 @@ def tg_send(chat_id, text, reply_to=None):
                json=payload, timeout=10)
 
 
-def extract_tasks_groq(text, author, msg_date):
+def call_groq(prompt: str, max_tokens: int = 1024) -> str:
+    r = httpx.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+        json={"model": "llama-3.3-70b-versatile",
+              "messages": [{"role": "user", "content": prompt}],
+              "max_tokens": max_tokens, "temperature": 0.1},
+        timeout=30,
+    )
+    return r.json()["choices"][0]["message"]["content"].strip()
+
+
+def parse_json_response(raw: str) -> list | dict:
+    raw = re.sub(r"^```json\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+    return json.loads(raw)
+
+
+SMART_PROMPT = """Ты стратегический помощник команды онлайн-курса. Думаешь не как «сделай задачу», а «какой результат получим».
+
+Сообщение от {author} ({date}):
+{text}
+
+Текущие активные цели команды:
+{goals}
+
+Твоя задача:
+1. Извлеки конкретные действия из сообщения
+2. Каждое действие привяжи к существующей цели по смыслу (укажи goal_id) ИЛИ предложи новую цель
+3. Каждая новая цель должна быть SMART — измеримый результат, не процесс
+
+Верни ТОЛЬКО валидный JSON (без markdown):
+{{
+  "new_goals": [
+    {{"title": "цель в формате 'глагол + измеримый результат'", "metric": "число или конкретный результат", "deadline": "дедлайн или null", "category": "обучение/маркетинг/продажи/контент/операционка/продукт"}}
+  ],
+  "actions": [
+    {{
+      "title": "конкретное действие",
+      "goal_id": 5,
+      "new_goal_index": null,
+      "assignee": "{author}",
+      "deadline": "дедлайн или null",
+      "priority": "high/medium/low",
+      "category": "обучение/маркетинг/продажи/контент/операционка/продукт"
+    }}
+  ],
+  "comment": "1 короткое предложение: к какой цели и почему, либо что новая цель"
+}}
+
+Правила:
+- Если действие подходит к существующей цели — поставь её goal_id, new_goal_index=null
+- Если нет подходящей цели — создай новую в new_goals и в action укажи new_goal_index (индекс в массиве)
+- Не дублируй задачи которые уже могут быть — отметь это в comment
+- Если задач нет — верни {{"new_goals":[],"actions":[],"comment":""}}"""
+
+
+def smart_extract(text, author, msg_date):
+    """Извлекает задачи + привязывает к целям + создаёт новые цели если нужно."""
     if not GROQ_API_KEY:
-        return []
+        return None
+
+    goals = db.get_goals()
+    goals_text = "\n".join(
+        f"  id={g['id']} [{g.get('category','')}]: {g['title']}" + (f" → метрика: {g['metric']}" if g.get('metric') else "")
+        for g in goals if g.get("status") == "active"
+    ) or "  (целей пока нет)"
+
     try:
-        r = httpx.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            json={"model": "llama-3.3-70b-versatile",
-                  "messages": [{"role": "user", "content": TASK_PROMPT.format(
-                      author=author, date=msg_date, text=text)}],
-                  "max_tokens": 1024, "temperature": 0.1},
-            timeout=20,
-        )
-        raw = r.json()["choices"][0]["message"]["content"].strip()
-        raw = re.sub(r"^```json\s*", "", raw)
-        raw = re.sub(r"\s*```$", "", raw)
-        result = json.loads(raw)
-        return result if isinstance(result, list) else []
+        raw = call_groq(SMART_PROMPT.format(
+            author=author, date=msg_date, text=text[:3000], goals=goals_text
+        ), max_tokens=2048)
+        return parse_json_response(raw)
     except Exception as e:
-        logger.warning(f"Groq error: {e}")
-        return []
+        logger.warning(f"Smart extract error: {e}")
+        return None
 
 
 def process_message(text, author, msg_date, chat_id, msg_id):
-    """Проверяет сообщение на задачи и сохраняет их."""
+    """Анализирует сообщение, привязывает к целям, сохраняет."""
     if len(text) < 20:
         return
     if not any(kw in text.lower() for kw in TASK_KEYWORDS):
         return
 
-    tasks = extract_tasks_groq(text, author, msg_date)
-
-    if not tasks:
+    result = smart_extract(text, author, msg_date)
+    if not result:
         return
 
-    for task in tasks:
-        db.create_task(task)
+    actions = result.get("actions", [])
+    new_goals = result.get("new_goals", [])
+    comment = result.get("comment", "")
 
-    titles = "\n".join(f"• {t['title'][:60]}" for t in tasks)
-    word = "задачу" if len(tasks) == 1 else "задачи" if len(tasks) < 5 else "задач"
-    tg_send(chat_id,
-            f"📋 Добавил {len(tasks)} {word} в трекер:\n{titles}\n\n{TRACKER_URL}",
-            reply_to=msg_id)
+    if not actions and not new_goals:
+        return
+
+    # Создаём новые цели
+    created_goals = []
+    for ng in new_goals:
+        g = db.create_goal({
+            "title": ng["title"],
+            "metric": ng.get("metric") or None,
+            "deadline": ng.get("deadline") or None,
+            "status": "active",
+            "category": ng.get("category", "операционка"),
+        })
+        created_goals.append(g)
+
+    # Создаём действия
+    saved_tasks = []
+    for a in actions:
+        goal_id = a.get("goal_id")
+        ngi = a.get("new_goal_index")
+        if ngi is not None and 0 <= ngi < len(created_goals):
+            goal_id = created_goals[ngi].get("id")
+
+        task = {
+            "title": a["title"],
+            "assignee": a.get("assignee", author),
+            "deadline": a.get("deadline"),
+            "priority": a.get("priority", "medium"),
+            "status": "todo",
+            "category": a.get("category", "операционка"),
+            "source_date": msg_date,
+            "context": a.get("context", ""),
+            "goal_id": goal_id,
+        }
+        saved = db.create_task(task)
+        saved_tasks.append({**task, "goal_id": goal_id})
+
+    # Формируем красивый ответ
+    msg_parts = []
+    if created_goals:
+        msg_parts.append("🎯 Создал новые цели:")
+        for g in created_goals:
+            line = f"• {g['title']}"
+            if g.get("metric"):
+                line += f"\n  📊 {g['metric']}"
+            msg_parts.append(line)
+        msg_parts.append("")
+
+    if saved_tasks:
+        # Группируем по цели
+        by_goal = {}
+        for t in saved_tasks:
+            by_goal.setdefault(t.get("goal_id"), []).append(t)
+
+        goals_map = {g["id"]: g for g in db.get_goals()}
+
+        for gid, tasks in by_goal.items():
+            goal = goals_map.get(gid)
+            if goal:
+                msg_parts.append(f"🎯 К цели «{goal['title']}»:")
+            else:
+                msg_parts.append("📝 Без цели:")
+            for t in tasks:
+                line = f"  ✅ {t['title']}"
+                if t.get("deadline"):
+                    line += f" (до {t['deadline']})"
+                msg_parts.append(line)
+
+    if comment:
+        msg_parts.append(f"\n💡 {comment}")
+
+    msg_parts.append(f"\n{TRACKER_URL}")
+
+    tg_send(chat_id, "\n".join(msg_parts), reply_to=msg_id)
 
 
 def send_deadline_reminders(chat_id):
