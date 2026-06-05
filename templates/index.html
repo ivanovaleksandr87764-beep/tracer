@@ -1,608 +1,479 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>Трекер задач</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f0f13;
-      color: #e2e2e8;
+      background: var(--tg-theme-bg-color, #1c1c1e);
+      color: var(--tg-theme-text-color, #ffffff);
       min-height: 100vh;
+      padding-bottom: 80px;
     }
 
-    header {
-      background: #18181f;
-      border-bottom: 1px solid #2a2a35;
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+    /* ── Header ── */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--tg-theme-bg-color, #1c1c1e);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding: 12px 16px 8px;
     }
 
-    header h1 { font-size: 18px; font-weight: 600; color: #fff; }
-    header .subtitle { font-size: 13px; color: #6b6b7e; }
+    .header-title { font-size: 17px; font-weight: 600; }
+    .header-sub { font-size: 12px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 2px; }
 
-    .stats-bar {
-      display: flex;
-      gap: 12px;
-      padding: 16px 24px;
-      border-bottom: 1px solid #2a2a35;
-      background: #18181f;
-      flex-wrap: wrap;
-    }
-
-    .stat {
-      display: flex;
-      align-items: center;
+    /* ── Stats ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      font-size: 13px;
-      color: #9090a0;
+      padding: 12px 16px;
     }
 
-    .stat .num {
-      font-size: 20px;
-      font-weight: 700;
-      color: #fff;
+    .stat-card {
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
     }
 
-    .stat.todo .num { color: #6b7ff5; }
-    .stat.in_progress .num { color: #f5a623; }
-    .stat.done .num { color: #4caf7d; }
-    .stat.high .num { color: #f54f4f; }
+    .stat-num { font-size: 22px; font-weight: 700; }
+    .stat-label { font-size: 10px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 2px; line-height: 1.2; }
+    .stat-num.blue { color: #3b82f6; }
+    .stat-num.yellow { color: #f59e0b; }
+    .stat-num.green { color: #22c55e; }
+    .stat-num.red { color: #ef4444; }
 
-    .layout {
+    /* ── Filters ── */
+    .filters {
+      padding: 0 16px 8px;
       display: flex;
-      height: calc(100vh - 117px);
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    .filters::-webkit-scrollbar { display: none; }
 
-    .sidebar {
-      width: 260px;
+    .chip {
       flex-shrink: 0;
-      background: #18181f;
-      border-right: 1px solid #2a2a35;
-      padding: 16px;
-      overflow-y: auto;
-    }
-
-    .sidebar h3 {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #5a5a6e;
-      margin-bottom: 8px;
-    }
-
-    .filter-group { margin-bottom: 20px; }
-
-    .filter-btn {
-      display: block;
-      width: 100%;
-      text-align: left;
-      background: none;
-      border: none;
-      color: #9090a0;
-      font-size: 13px;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .filter-btn:hover { background: #22222e; color: #e2e2e8; }
-    .filter-btn.active { background: #2a2a3e; color: #6b7ff5; }
-
-    .filter-btn .dot {
-      display: inline-block;
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-
-    .dot-todo { background: #6b7ff5; }
-    .dot-in_progress { background: #f5a623; }
-    .dot-done { background: #4caf7d; }
-    .dot-high { background: #f54f4f; }
-    .dot-medium { background: #f5a623; }
-    .dot-low { background: #6b6b7e; }
-
-    .main {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px 24px;
-    }
-
-    .toolbar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      flex-wrap: wrap;
-    }
-
-    .search {
-      flex: 1;
-      min-width: 200px;
-      background: #22222e;
-      border: 1px solid #2a2a35;
-      border-radius: 8px;
-      padding: 8px 12px;
-      color: #e2e2e8;
-      font-size: 14px;
-      outline: none;
-    }
-
-    .search:focus { border-color: #6b7ff5; }
-    .search::placeholder { color: #4a4a5e; }
-
-    .btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
       font-size: 13px;
       font-weight: 500;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      color: var(--tg-theme-hint-color, #8e8e93);
+      border: none;
       cursor: pointer;
-      transition: opacity 0.15s;
+      transition: all 0.15s;
+    }
+    .chip.active {
+      background: var(--tg-theme-button-color, #3b82f6);
+      color: var(--tg-theme-button-text-color, #fff);
     }
 
-    .btn:hover { opacity: 0.85; }
-    .btn-primary { background: #6b7ff5; color: #fff; }
-    .btn-ghost { background: #22222e; border: 1px solid #2a2a35; color: #9090a0; }
-    .btn-danger { background: #3a1a1a; color: #f54f4f; border: 1px solid #4a2a2a; }
-    .btn-sm { padding: 4px 10px; font-size: 12px; }
-
-    .tasks-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .task-card {
-      background: #1c1c25;
-      border: 1px solid #2a2a35;
+    /* ── Search ── */
+    .search-wrap { padding: 0 16px 10px; }
+    .search {
+      width: 100%;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none;
       border-radius: 10px;
-      padding: 14px 16px;
+      padding: 9px 12px;
+      color: var(--tg-theme-text-color, #fff);
+      font-size: 15px;
+      outline: none;
+    }
+    .search::placeholder { color: var(--tg-theme-hint-color, #8e8e93); }
+
+    /* ── Tasks ── */
+    .tasks { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    .task {
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border-radius: 14px;
+      padding: 12px 14px;
       display: flex;
-      gap: 12px;
+      gap: 10px;
       align-items: flex-start;
-      transition: border-color 0.15s;
+      active: opacity(0.7);
     }
 
-    .task-card:hover { border-color: #3a3a4e; }
-    .task-card.done { opacity: 0.55; }
+    .task.done { opacity: 0.45; }
 
-    .task-status-dot {
-      width: 10px; height: 10px;
+    .task-dot {
+      width: 11px; height: 11px;
       border-radius: 50%;
       flex-shrink: 0;
-      margin-top: 5px;
+      margin-top: 4px;
       cursor: pointer;
     }
+    .dot-todo { background: #3b82f6; }
+    .dot-in_progress { background: #f59e0b; }
+    .dot-done { background: #22c55e; }
 
     .task-body { flex: 1; min-width: 0; }
 
     .task-title {
       font-size: 14px;
       font-weight: 500;
-      color: #e2e2e8;
-      margin-bottom: 4px;
+      line-height: 1.4;
+      margin-bottom: 5px;
+    }
+    .task.done .task-title {
+      text-decoration: line-through;
+      color: var(--tg-theme-hint-color, #8e8e93);
+    }
+
+    .task-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+    .tag-todo { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    .tag-in_progress { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .tag-done { background: rgba(34,197,94,0.15); color: #4ade80; }
+    .tag-high { background: rgba(239,68,68,0.15); color: #f87171; }
+    .tag-medium { background: rgba(245,158,11,0.12); color: #fbbf24; }
+    .tag-low { background: rgba(107,114,128,0.15); color: #9ca3af; }
+    .tag-cat { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .tag-deadline { background: rgba(239,68,68,0.12); color: #fca5a5; }
+
+    .task-context {
+      font-size: 12px;
+      color: var(--tg-theme-hint-color, #8e8e93);
+      margin-top: 5px;
       line-height: 1.4;
     }
 
-    .task-card.done .task-title { text-decoration: line-through; color: #5a5a6e; }
-
-    .task-meta {
+    /* ── FAB ── */
+    .fab {
+      position: fixed;
+      bottom: 20px;
+      right: 16px;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: var(--tg-theme-button-color, #3b82f6);
+      color: var(--tg-theme-button-text-color, #fff);
+      border: none;
+      font-size: 26px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
       display: flex;
-      gap: 10px;
-      font-size: 12px;
-      color: #5a5a6e;
-      flex-wrap: wrap;
-    }
-
-    .badge {
-      display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 2px 8px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 500;
+      justify-content: center;
+      z-index: 40;
     }
 
-    .badge-todo { background: #1e2040; color: #6b7ff5; }
-    .badge-in_progress { background: #2a1f0a; color: #f5a623; }
-    .badge-done { background: #0a2018; color: #4caf7d; }
-    .badge-high { background: #2a0e0e; color: #f54f4f; }
-    .badge-medium { background: #2a1f0a; color: #f5a623; }
-    .badge-low { background: #1a1a25; color: #6b6b7e; }
+    /* ── Bottom sheet modal ── */
+    .sheet-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 60;
+      align-items: flex-end;
+    }
+    .sheet-overlay.open { display: flex; }
 
-    .task-actions {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
+    .sheet {
+      background: var(--tg-theme-bg-color, #1c1c1e);
+      border-radius: 20px 20px 0 0;
+      padding: 8px 16px 32px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .sheet-handle {
+      width: 36px; height: 4px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 2px;
+      margin: 8px auto 16px;
+    }
+
+    .sheet h3 { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+
+    .field { margin-bottom: 12px; }
+    .field label {
+      font-size: 12px;
+      color: var(--tg-theme-hint-color, #8e8e93);
+      margin-bottom: 5px;
+      display: block;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .field input, .field select, .field textarea {
+      width: 100%;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--tg-theme-text-color, #fff);
+      font-size: 15px;
+      outline: none;
+      font-family: inherit;
+    }
+    .field select option { background: #2c2c2e; }
+    .field textarea { resize: none; min-height: 70px; }
+
+    .sheet-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: var(--tg-theme-button-color, #3b82f6);
+      color: var(--tg-theme-button-text-color, #fff);
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 4px;
     }
 
     .empty {
       text-align: center;
       padding: 60px 20px;
-      color: #4a4a5e;
+      color: var(--tg-theme-hint-color, #8e8e93);
     }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: var(--tg-theme-text-color,#fff); }
 
-    .empty h3 { font-size: 18px; margin-bottom: 8px; color: #6b6b7e; }
-
-    /* Modal */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.6);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-overlay.open { display: flex; }
-
-    .modal {
-      background: #1c1c25;
-      border: 1px solid #2a2a35;
-      border-radius: 14px;
-      padding: 24px;
-      width: 520px;
-      max-width: 95vw;
-      max-height: 90vh;
-      overflow-y: auto;
-    }
-
-    .modal h2 { font-size: 16px; margin-bottom: 20px; color: #fff; }
-
-    .form-group { margin-bottom: 14px; }
-
-    label {
-      display: block;
-      font-size: 12px;
-      color: #6b6b7e;
-      margin-bottom: 6px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    input[type=text], input[type=date], select, textarea {
+    /* ── Analyze sheet ── */
+    .analyze-area {
       width: 100%;
-      background: #22222e;
-      border: 1px solid #2a2a35;
-      border-radius: 8px;
-      padding: 9px 12px;
-      color: #e2e2e8;
-      font-size: 14px;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: var(--tg-theme-text-color, #fff);
+      font-size: 15px;
       outline: none;
       font-family: inherit;
-      transition: border-color 0.15s;
+      resize: none;
+      min-height: 100px;
+      margin-bottom: 10px;
     }
+    .analyze-area::placeholder { color: var(--tg-theme-hint-color,#8e8e93); }
 
-    input[type=text]:focus, input[type=date]:focus, select:focus, textarea:focus {
-      border-color: #6b7ff5;
-    }
-
-    select option { background: #22222e; }
-    textarea { resize: vertical; min-height: 80px; }
-
-    .modal-footer {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      margin-top: 20px;
-    }
-
-    /* Analyze panel */
-    .analyze-panel {
-      background: #1c1c25;
-      border: 1px solid #2a2a35;
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 20px;
-    }
-
-    .analyze-panel h3 {
-      font-size: 13px;
-      color: #9090a0;
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .analyze-row {
-      display: flex;
-      gap: 10px;
-    }
-
-    .analyze-row textarea {
-      flex: 1;
-      min-height: 60px;
-    }
-
-    .analyze-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .loading {
+    .spinner {
       display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid #3a3a4e;
-      border-top-color: #6b7ff5;
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 0.7s linear infinite;
       vertical-align: middle;
+      margin-right: 6px;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .toast {
+    /* ── Tab bar ── */
+    .tabbar {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      background: #22222e;
-      border: 1px solid #2a2a35;
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 13px;
-      z-index: 200;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s;
-    }
-
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.success { border-color: #4caf7d; color: #4caf7d; }
-    .toast.error { border-color: #f54f4f; color: #f54f4f; }
-
-    .assignee-select {
+      bottom: 0; left: 0; right: 0;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
       display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 4px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      z-index: 40;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
-    .assignee-chip {
-      padding: 4px 10px;
-      border-radius: 20px;
-      background: #22222e;
-      border: 1px solid #2a2a35;
-      font-size: 12px;
+    .tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0 6px;
+      font-size: 10px;
+      color: var(--tg-theme-hint-color, #8e8e93);
       cursor: pointer;
-      color: #9090a0;
-      transition: all 0.15s;
+      border: none;
+      background: none;
+      gap: 3px;
     }
-
-    .assignee-chip:hover, .assignee-chip.active {
-      background: #2a2a3e;
-      border-color: #6b7ff5;
-      color: #6b7ff5;
-    }
+    .tab.active { color: var(--tg-theme-button-color, #3b82f6); }
+    .tab-icon { font-size: 22px; }
   </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>Трекер задач</h1>
-    <div class="subtitle">Бэклог рабочего чата</div>
-  </div>
-</header>
-
-<div class="stats-bar" id="stats-bar">
-  <div class="stat"><span class="num" id="s-total">—</span> всего</div>
-  <div class="stat todo"><span class="num" id="s-todo">—</span> к выполнению</div>
-  <div class="stat in_progress"><span class="num" id="s-inprogress">—</span> в работе</div>
-  <div class="stat done"><span class="num" id="s-done">—</span> готово</div>
-  <div class="stat high"><span class="num" id="s-high">—</span> высокий приоритет</div>
+<div class="header">
+  <div class="header-title">Трекер задач</div>
+  <div class="header-sub" id="header-sub">Загрузка...</div>
 </div>
 
-<div class="layout">
-  <div class="sidebar">
-    <div class="filter-group">
-      <h3>Статус</h3>
-      <button class="filter-btn active" data-filter="status" data-value="" onclick="setFilter('status','',this)">
-        Все
-      </button>
-      <button class="filter-btn" data-filter="status" data-value="todo" onclick="setFilter('status','todo',this)">
-        <span class="dot dot-todo"></span>К выполнению
-      </button>
-      <button class="filter-btn" data-filter="status" data-value="in_progress" onclick="setFilter('status','in_progress',this)">
-        <span class="dot dot-in_progress"></span>В работе
-      </button>
-      <button class="filter-btn" data-filter="status" data-value="done" onclick="setFilter('status','done',this)">
-        <span class="dot dot-done"></span>Выполнено
-      </button>
-    </div>
-
-    <div class="filter-group">
-      <h3>Приоритет</h3>
-      <button class="filter-btn" data-filter="priority" data-value="" onclick="setFilter('priority','',this)">
-        Все
-      </button>
-      <button class="filter-btn" data-filter="priority" data-value="high" onclick="setFilter('priority','high',this)">
-        <span class="dot dot-high"></span>Высокий
-      </button>
-      <button class="filter-btn" data-filter="priority" data-value="medium" onclick="setFilter('priority','medium',this)">
-        <span class="dot dot-medium"></span>Средний
-      </button>
-      <button class="filter-btn" data-filter="priority" data-value="low" onclick="setFilter('priority','low',this)">
-        <span class="dot dot-low"></span>Низкий
-      </button>
-    </div>
-
-    <div class="filter-group">
-      <h3>Категория</h3>
-      <button class="filter-btn active" onclick="setFilter('category','',this)">Все</button>
-      <button class="filter-btn" onclick="setFilter('category','обучение',this)">📚 Обучение</button>
-      <button class="filter-btn" onclick="setFilter('category','продукт',this)">🛠 Продукт</button>
-      <button class="filter-btn" onclick="setFilter('category','контент',this)">✍️ Контент</button>
-      <button class="filter-btn" onclick="setFilter('category','маркетинг',this)">📣 Маркетинг</button>
-      <button class="filter-btn" onclick="setFilter('category','продажи',this)">💰 Продажи</button>
-      <button class="filter-btn" onclick="setFilter('category','операционка',this)">⚙️ Операционка</button>
-    </div>
-
-    <div class="filter-group">
-      <h3>Участник</h3>
-      <div id="assignee-filters"></div>
-    </div>
-  </div>
-
-  <div class="main">
-    <div class="analyze-panel">
-      <h3>🤖 Анализ нового сообщения</h3>
-      <div class="analyze-row">
-        <textarea id="new-msg-text" placeholder="Вставь сообщение из чата — бот сам найдёт задачи..."></textarea>
-        <div class="analyze-actions">
-          <input type="text" id="new-msg-author" placeholder="Автор" style="width:150px" />
-          <button class="btn btn-primary" onclick="analyzeMessage()">Анализировать</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="toolbar">
-      <input class="search" type="text" id="search" placeholder="Поиск задач..." oninput="loadTasks()" />
-      <button class="btn btn-primary" onclick="openCreateModal()">+ Задача</button>
-    </div>
-
-    <div class="tasks-grid" id="tasks-grid"></div>
-  </div>
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-card"><div class="stat-num" id="s-total">—</div><div class="stat-label">Всего</div></div>
+  <div class="stat-card"><div class="stat-num blue" id="s-todo">—</div><div class="stat-label">К работе</div></div>
+  <div class="stat-card"><div class="stat-num yellow" id="s-inprogress">—</div><div class="stat-label">В работе</div></div>
+  <div class="stat-card"><div class="stat-num green" id="s-done">—</div><div class="stat-label">Готово</div></div>
 </div>
 
-<!-- Create/Edit Modal -->
-<div class="modal-overlay" id="modal">
-  <div class="modal">
-    <h2 id="modal-title">Новая задача</h2>
-    <div class="form-group">
-      <label>Название</label>
-      <input type="text" id="f-title" placeholder="Что нужно сделать?" />
-    </div>
-    <div class="form-group">
-      <label>Исполнитель</label>
-      <input type="text" id="f-assignee" placeholder="Имя" />
-    </div>
-    <div class="form-group">
-      <label>Дедлайн</label>
-      <input type="date" id="f-deadline" />
-    </div>
-    <div class="form-group">
+<!-- Status filters -->
+<div class="filters" id="status-filters">
+  <button class="chip active" onclick="setStatus('',this)">Все</button>
+  <button class="chip" onclick="setStatus('todo',this)">🔵 К работе</button>
+  <button class="chip" onclick="setStatus('in_progress',this)">🟡 В работе</button>
+  <button class="chip" onclick="setStatus('done',this)">🟢 Готово</button>
+</div>
+
+<!-- Category filters -->
+<div class="filters" id="cat-filters">
+  <button class="chip active" onclick="setCat('',this)">Все</button>
+  <button class="chip" onclick="setCat('обучение',this)">📚 Обучение</button>
+  <button class="chip" onclick="setCat('продукт',this)">🛠 Продукт</button>
+  <button class="chip" onclick="setCat('контент',this)">✍️ Контент</button>
+  <button class="chip" onclick="setCat('маркетинг',this)">📣 Маркетинг</button>
+  <button class="chip" onclick="setCat('продажи',this)">💰 Продажи</button>
+  <button class="chip" onclick="setCat('операционка',this)">⚙️ Операционка</button>
+</div>
+
+<!-- Search -->
+<div class="search-wrap">
+  <input class="search" type="text" id="search" placeholder="🔍 Поиск..." oninput="loadTasks()"/>
+</div>
+
+<!-- Tasks list -->
+<div class="tasks" id="tasks"></div>
+
+<!-- Tab bar -->
+<div class="tabbar">
+  <button class="tab active" onclick="showView('tasks')">
+    <span class="tab-icon">📋</span>Задачи
+  </button>
+  <button class="tab" onclick="showView('analyze')">
+    <span class="tab-icon">🤖</span>Анализ
+  </button>
+  <button class="tab" onclick="showView('add')">
+    <span class="tab-icon">➕</span>Добавить
+  </button>
+</div>
+
+<!-- Sheet: Добавить задачу -->
+<div class="sheet-overlay" id="sheet-add">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>Новая задача</h3>
+    <div class="field"><label>Название</label><input type="text" id="f-title" placeholder="Что нужно сделать?"/></div>
+    <div class="field"><label>Исполнитель</label><input type="text" id="f-assignee" placeholder="Имя"/></div>
+    <div class="field"><label>Дедлайн</label><input type="text" id="f-deadline" placeholder="до конца недели / 10 июня..."/></div>
+    <div class="field">
       <label>Приоритет</label>
       <select id="f-priority">
-        <option value="high">Высокий</option>
-        <option value="medium" selected>Средний</option>
-        <option value="low">Низкий</option>
+        <option value="high">🔴 Высокий</option>
+        <option value="medium" selected>🟡 Средний</option>
+        <option value="low">⚪ Низкий</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>Статус</label>
-      <select id="f-status">
-        <option value="todo">К выполнению</option>
-        <option value="in_progress">В работе</option>
-        <option value="done">Выполнено</option>
+    <div class="field">
+      <label>Категория</label>
+      <select id="f-category">
+        <option value="обучение">📚 Обучение</option>
+        <option value="маркетинг">📣 Маркетинг</option>
+        <option value="продажи">💰 Продажи</option>
+        <option value="контент">✍️ Контент</option>
+        <option value="операционка" selected>⚙️ Операционка</option>
+        <option value="продукт">🛠 Продукт</option>
       </select>
     </div>
-    <div class="form-group">
-      <label>Контекст</label>
-      <textarea id="f-context" placeholder="Зачем эта задача?"></textarea>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
-      <button class="btn btn-primary" onclick="saveTask()">Сохранить</button>
-    </div>
+    <div class="field"><label>Контекст</label><textarea id="f-context" placeholder="Зачем эта задача?"></textarea></div>
+    <button class="sheet-btn" onclick="saveTask()">Сохранить</button>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- Sheet: Анализ сообщения -->
+<div class="sheet-overlay" id="sheet-analyze">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3>🤖 Анализ сообщения</h3>
+    <textarea class="analyze-area" id="analyze-text" placeholder="Вставь сообщение из чата — бот найдёт задачи автоматически..."></textarea>
+    <input type="text" id="analyze-author" placeholder="Автор (необязательно)"
+      style="width:100%;background:var(--tg-theme-secondary-bg-color,#2c2c2e);border:none;border-radius:10px;padding:10px 12px;color:var(--tg-theme-text-color,#fff);font-size:15px;outline:none;margin-bottom:10px;"/>
+    <button class="sheet-btn" id="analyze-btn" onclick="analyzeMsg()">Найти задачи</button>
+  </div>
+</div>
 
 <script>
-  let filters = { status: '', priority: '', assignee: '', category: '' };
-  let editingId = null;
+  // ── Telegram WebApp init ──────────────────────────────────────────────
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor('bg_color');
+  }
 
-  const STATUS_LABELS = { todo: 'К выполнению', in_progress: 'В работе', done: 'Выполнено' };
+  // ── State ─────────────────────────────────────────────────────────────
+  let filterStatus = '';
+  let filterCat = '';
+
+  const STATUS_LABELS = { todo: 'К работе', in_progress: 'В работе', done: 'Готово' };
   const PRIORITY_LABELS = { high: 'Высокий', medium: 'Средний', low: 'Низкий' };
   const STATUS_NEXT = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
 
+  // ── API ───────────────────────────────────────────────────────────────
+  async function api(path, opts={}) {
+    const r = await fetch(path, { headers: {'Content-Type':'application/json'}, ...opts });
+    return r.json();
+  }
+
+  // ── Stats ─────────────────────────────────────────────────────────────
   async function loadStats() {
-    const r = await fetch('/api/stats');
-    const s = await r.json();
+    const s = await api('/api/stats');
     document.getElementById('s-total').textContent = s.total;
     document.getElementById('s-todo').textContent = s.todo;
     document.getElementById('s-inprogress').textContent = s.in_progress;
     document.getElementById('s-done').textContent = s.done;
-    document.getElementById('s-high').textContent = s.high;
+    document.getElementById('header-sub').textContent =
+      `${s.total} задач · ${s.high || 0} срочных`;
   }
 
-  async function loadAssignees() {
-    const r = await fetch('/api/assignees');
-    const list = await r.json();
-    const el = document.getElementById('assignee-filters');
-    el.innerHTML = `<button class="filter-btn active" onclick="setFilter('assignee','',this)">Все</button>`;
-    list.forEach(a => {
-      const btn = document.createElement('button');
-      btn.className = 'filter-btn';
-      btn.textContent = a;
-      btn.onclick = () => setFilter('assignee', a, btn);
-      el.appendChild(btn);
-    });
-  }
-
-  function setFilter(key, value, el) {
-    filters[key] = value;
-    // deactivate siblings in same group
-    if (el) {
-      const group = el.closest('.filter-group');
-      if (group) group.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      el.classList.add('active');
-    }
-    loadTasks();
-  }
-
+  // ── Tasks ─────────────────────────────────────────────────────────────
   async function loadTasks() {
-    const params = new URLSearchParams();
-    if (filters.status) params.set('status', filters.status);
-    if (filters.priority) params.set('priority', filters.priority);
-    if (filters.assignee) params.set('assignee', filters.assignee);
-    if (filters.category) params.set('category', filters.category);
-    const search = document.getElementById('search').value;
-    if (search) params.set('search', search);
+    const p = new URLSearchParams();
+    if (filterStatus) p.set('status', filterStatus);
+    if (filterCat) p.set('category', filterCat);
+    const q = document.getElementById('search').value;
+    if (q) p.set('search', q);
 
-    const r = await fetch('/api/tasks?' + params);
-    const tasks = await r.json();
+    const tasks = await api('/api/tasks?' + p);
     renderTasks(tasks);
   }
 
   function renderTasks(tasks) {
-    const grid = document.getElementById('tasks-grid');
+    const el = document.getElementById('tasks');
     if (!tasks.length) {
-      grid.innerHTML = `<div class="empty"><h3>Задач не найдено</h3><p>Измени фильтры или добавь новую задачу</p></div>`;
+      el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Задач нет</h3><p>Измени фильтр или добавь новую</p></div>`;
       return;
     }
-    grid.innerHTML = tasks.map(t => `
-      <div class="task-card ${t.status === 'done' ? 'done' : ''}" id="card-${t.id}">
-        <div class="task-status-dot dot-${t.status}" title="Сменить статус" onclick="cycleStatus(${t.id}, '${t.status}')"></div>
-        <div class="task-body">
-          <div class="task-title">${escHtml(t.title)}</div>
-          <div class="task-meta">
-            ${t.assignee ? `<span>👤 ${escHtml(t.assignee)}</span>` : ''}
-            ${t.deadline ? `<span>📅 ${t.deadline}</span>` : ''}
-            ${t.source_date ? `<span>🗓 ${t.source_date}</span>` : ''}
-            <span class="badge badge-${t.status}">${STATUS_LABELS[t.status] || t.status}</span>
-            <span class="badge badge-${t.priority}">${PRIORITY_LABELS[t.priority] || t.priority}</span>
-            ${t.category ? `<span class="badge" style="background:#1a2030;color:#7090c0">${escHtml(t.category)}</span>` : ''}
+    el.innerHTML = tasks.map(t => `
+      <div class="task ${t.status==='done'?'done':''}" id="card-${t.id}">
+        <div class="task-dot dot-${t.status}" onclick="cycleStatus(${t.id},'${t.status}')"></div>
+        <div class="task-body" onclick="openTask(${t.id})">
+          <div class="task-title">${esc(t.title)}</div>
+          <div class="task-tags">
+            <span class="tag tag-${t.status}">${STATUS_LABELS[t.status]||t.status}</span>
+            <span class="tag tag-${t.priority}">${PRIORITY_LABELS[t.priority]||t.priority}</span>
+            ${t.category?`<span class="tag tag-cat">${esc(t.category)}</span>`:''}
+            ${t.deadline?`<span class="tag tag-deadline">📅 ${esc(t.deadline)}</span>`:''}
+            ${t.assignee?`<span class="tag tag-cat">👤 ${esc(t.assignee)}</span>`:''}
           </div>
-          ${t.context ? `<div class="task-meta" style="margin-top:6px;color:#4a4a5e;font-size:12px">${escHtml(t.context)}</div>` : ''}
-        </div>
-        <div class="task-actions">
-          <button class="btn btn-ghost btn-sm" onclick="openEditModal(${JSON.stringify(t).replace(/"/g, '&quot;')})">✏️</button>
-          <button class="btn btn-danger btn-sm" onclick="deleteTask(${t.id})">🗑</button>
+          ${t.context?`<div class="task-context">${esc(t.context)}</div>`:''}
         </div>
       </div>
     `).join('');
@@ -610,132 +481,113 @@
 
   async function cycleStatus(id, current) {
     const next = STATUS_NEXT[current] || 'todo';
-    await fetch(`/api/tasks/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: next }),
+    await api(`/api/tasks/${id}`, { method:'PATCH', body: JSON.stringify({status: next}) });
+    if (tg) tg.HapticFeedback?.impactOccurred('light');
+    loadTasks(); loadStats();
+  }
+
+  function openTask(id) {
+    // В будущем — детальный экран задачи
+  }
+
+  // ── Filters ───────────────────────────────────────────────────────────
+  function setStatus(val, el) {
+    filterStatus = val;
+    document.querySelectorAll('#status-filters .chip').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    loadTasks();
+  }
+
+  function setCat(val, el) {
+    filterCat = val;
+    document.querySelectorAll('#cat-filters .chip').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    loadTasks();
+  }
+
+  // ── Views / sheets ────────────────────────────────────────────────────
+  function showView(view) {
+    document.querySelectorAll('.tab').forEach((t,i) => {
+      t.classList.toggle('active', ['tasks','analyze','add'][i] === view);
     });
-    loadTasks();
-    loadStats();
-    showToast(`Статус → ${STATUS_LABELS[next]}`, 'success');
+    if (view === 'add') openSheet('sheet-add');
+    else if (view === 'analyze') openSheet('sheet-analyze');
   }
 
-  async function deleteTask(id) {
-    if (!confirm('Удалить задачу?')) return;
-    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
-    loadTasks();
-    loadStats();
-    showToast('Задача удалена');
+  function openSheet(id) {
+    document.getElementById(id).classList.add('open');
+    document.getElementById(id).onclick = e => {
+      if (e.target === document.getElementById(id)) closeSheets();
+    };
   }
 
-  function openCreateModal() {
-    editingId = null;
-    document.getElementById('modal-title').textContent = 'Новая задача';
-    document.getElementById('f-title').value = '';
-    document.getElementById('f-assignee').value = '';
-    document.getElementById('f-deadline').value = '';
-    document.getElementById('f-priority').value = 'medium';
-    document.getElementById('f-status').value = 'todo';
-    document.getElementById('f-context').value = '';
-    document.getElementById('modal').classList.add('open');
+  function closeSheets() {
+    document.querySelectorAll('.sheet-overlay').forEach(s => s.classList.remove('open'));
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', i===0));
   }
 
-  function openEditModal(task) {
-    editingId = task.id;
-    document.getElementById('modal-title').textContent = 'Редактировать задачу';
-    document.getElementById('f-title').value = task.title || '';
-    document.getElementById('f-assignee').value = task.assignee || '';
-    document.getElementById('f-deadline').value = task.deadline || '';
-    document.getElementById('f-priority').value = task.priority || 'medium';
-    document.getElementById('f-status').value = task.status || 'todo';
-    document.getElementById('f-context').value = task.context || '';
-    document.getElementById('modal').classList.add('open');
-  }
-
-  function closeModal() {
-    document.getElementById('modal').classList.remove('open');
-  }
-
+  // ── Save task ─────────────────────────────────────────────────────────
   async function saveTask() {
+    const title = document.getElementById('f-title').value.trim();
+    if (!title) { tg?.HapticFeedback?.notificationOccurred('error'); return; }
+
     const data = {
-      title: document.getElementById('f-title').value,
+      title,
       assignee: document.getElementById('f-assignee').value,
       deadline: document.getElementById('f-deadline').value || null,
       priority: document.getElementById('f-priority').value,
-      status: document.getElementById('f-status').value,
+      category: document.getElementById('f-category').value,
       context: document.getElementById('f-context').value,
+      status: 'todo',
     };
 
-    if (!data.title.trim()) { showToast('Введи название', 'error'); return; }
+    await api('/api/tasks', { method:'POST', body: JSON.stringify(data) });
+    tg?.HapticFeedback?.notificationOccurred('success');
+    closeSheets();
+    loadTasks(); loadStats();
 
-    if (editingId) {
-      await fetch(`/api/tasks/${editingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-    } else {
-      await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-    }
-
-    closeModal();
-    loadTasks();
-    loadStats();
-    loadAssignees();
-    showToast('Задача сохранена', 'success');
+    // Очищаем форму
+    ['f-title','f-assignee','f-deadline','f-context'].forEach(id => document.getElementById(id).value='');
   }
 
-  async function analyzeMessage() {
-    const text = document.getElementById('new-msg-text').value.trim();
-    const author = document.getElementById('new-msg-author').value.trim();
-    if (!text) { showToast('Вставь текст сообщения', 'error'); return; }
+  // ── Analyze message ───────────────────────────────────────────────────
+  async function analyzeMsg() {
+    const text = document.getElementById('analyze-text').value.trim();
+    if (!text) return;
 
-    const btn = document.querySelector('.analyze-actions .btn-primary');
-    btn.innerHTML = '<span class="loading"></span> Анализирую...';
+    const btn = document.getElementById('analyze-btn');
+    btn.innerHTML = '<span class="spinner"></span>Анализирую...';
     btn.disabled = true;
 
     try {
-      const r = await fetch('/api/analyze', {
+      const tasks = await api('/api/analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, author }),
+        body: JSON.stringify({
+          text,
+          author: document.getElementById('analyze-author').value || '',
+        }),
       });
-      const tasks = await r.json();
-      document.getElementById('new-msg-text').value = '';
-      loadTasks();
-      loadStats();
-      loadAssignees();
-      showToast(`Найдено задач: ${tasks.length}`, 'success');
-    } catch (e) {
-      showToast('Ошибка анализа', 'error');
+      tg?.HapticFeedback?.notificationOccurred('success');
+      if (tg) {
+        tg.showPopup({ title: '✅ Готово', message: `Найдено задач: ${tasks.length}`, buttons: [{type:'ok'}] });
+      }
+      document.getElementById('analyze-text').value = '';
+      closeSheets();
+      loadTasks(); loadStats();
+    } catch(e) {
+      tg?.HapticFeedback?.notificationOccurred('error');
     }
 
-    btn.innerHTML = 'Анализировать';
+    btn.innerHTML = 'Найти задачи';
     btn.disabled = false;
   }
 
-  function showToast(msg, type = '') {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.className = `toast show ${type}`;
-    setTimeout(() => t.className = 'toast', 2500);
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  document.getElementById('modal').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal')) closeModal();
-  });
-
-  // Init
+  // ── Init ──────────────────────────────────────────────────────────────
   loadStats();
-  loadAssignees();
   loadTasks();
 </script>
 </body>

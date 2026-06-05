@@ -10,7 +10,7 @@ import json
 import logging
 import httpx
 from datetime import datetime, date, timedelta
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, WebAppInfo
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -259,16 +259,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📋 Открыть трекер", web_app=WebAppInfo(url=TRACKER_URL))
+    ]])
     await update.message.reply_text(
-        "👋 Привет! Я слежу за сообщениями в чате и автоматически добавляю задачи в трекер.\n\n"
-        f"🔗 Трекер: {TRACKER_URL}\n\n"
-        "Просто пишите в чат как обычно — если увижу задачу, сразу запишу."
+        "👋 Привет! Слежу за чатом и автоматически записываю задачи в трекер.\n\n"
+        "Просто пишите как обычно — если увижу задачу, сразу добавлю.\n\n"
+        "Команды:\n"
+        "/tasks — открыть трекер\n"
+        "/add Текст — добавить задачу вручную\n"
+        "/remind — проверить дедлайны",
+        reply_markup=keyboard,
     )
 
 
 async def cmd_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать ссылку на трекер."""
-    await update.message.reply_text(f"📋 Трекер задач: {TRACKER_URL}")
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📋 Открыть трекер", web_app=WebAppInfo(url=TRACKER_URL))
+    ]])
+    await update.message.reply_text("Открывай 👇", reply_markup=keyboard)
 
 
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -500,6 +509,15 @@ def main():
         time=datetime.strptime("18:00", "%H:%M").time(),
         name="evening_reminder",
     )
+
+    # Ставим кнопку меню (📋) рядом с полем ввода — открывает мини-апп
+    async def post_init(app):
+        if TRACKER_URL and TRACKER_URL.startswith("https://"):
+            await app.bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(text="📋 Трекер", web_app=WebAppInfo(url=TRACKER_URL))
+            )
+
+    app.post_init = post_init
 
     print(f"🤖 Бот запущен. Трекер: {TRACKER_URL}")
     print(f"⏰ Напоминания: 09:00 и 18:00 → chat_id={CHAT_ID or 'не задан'}")
