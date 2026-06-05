@@ -46,6 +46,35 @@ def tg_send(chat_id, text, reply_to=None):
 
 
 AI_MODEL = os.environ.get("AI_MODEL", "deepseek-r1-distill-llama-70b")
+WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "whisper-large-v3-turbo")
+
+
+def transcribe_voice(file_id: str) -> str:
+    """Скачивает голосовое и транскрибирует через Groq Whisper."""
+    try:
+        # 1. Получаем путь к файлу
+        r = httpx.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile",
+                      params={"file_id": file_id}, timeout=10)
+        file_path = r.json()["result"]["file_path"]
+
+        # 2. Скачиваем
+        audio = httpx.get(
+            f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}",
+            timeout=30,
+        ).content
+
+        # 3. Распознаём через Groq Whisper (бесплатно)
+        r = httpx.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+            files={"file": ("audio.ogg", audio, "audio/ogg")},
+            data={"model": WHISPER_MODEL, "language": "ru"},
+            timeout=60,
+        )
+        return r.json().get("text", "")
+    except Exception as e:
+        logger.warning(f"Voice transcribe error: {e}")
+        return ""
 
 
 def call_groq(prompt: str, max_tokens: int = 1024, temperature: float = 0.1) -> str:
@@ -333,15 +362,32 @@ def webhook(token):
         return "ok"
 
     msg = data.get("message") or data.get("channel_post")
-    if not msg or not msg.get("text"):
+    if not msg:
         return "ok"
 
-    text = msg["text"]
     chat_id = msg["chat"]["id"]
     msg_id = msg["message_id"]
     user = msg.get("from", {})
-    author = user.get("first_name", "") + (" " + user.get("last_name", "")).strip()
+    author = (user.get("first_name", "") + " " + user.get("last_name", "")).strip() or user.get("username", "")
     msg_date = datetime.now().strftime("%d %B %Y")
+
+    text = msg.get("text", "")
+    voice_source = ""
+
+    # Если это голосовое или видеокружок — распознаём
+    if not text:
+        voice = msg.get("voice") or msg.get("video_note") or msg.get("audio")
+        if voice and voice.get("file_id"):
+            tg_send(chat_id, "🎙 Слушаю голосовое...", reply_to=msg_id)
+            text = transcribe_voice(voice["file_id"])
+            if not text:
+                tg_send(chat_id, "❌ Не смог распознать голосовое", reply_to=msg_id)
+                return "ok"
+            voice_source = "🎙 Расшифровка: " + (text[:200] + "..." if len(text) > 200 else text)
+            tg_send(chat_id, voice_source, reply_to=msg_id)
+
+    if not text:
+        return "ok"
 
     # Команды
     if text.startswith("/start") or text.startswith("/tasks"):
@@ -362,7 +408,7 @@ def webhook(token):
             tg_send(chat_id, f"✅ Задача добавлена: {title}", reply_to=msg_id)
         return "ok"
 
-    # Анализ обычного сообщения
+    # Анализ обычного/голосового сообщения
     process_message(text, author, msg_date, chat_id, msg_id)
     return "ok"
 
