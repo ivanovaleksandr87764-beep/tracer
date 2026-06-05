@@ -18,6 +18,17 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 TRACKER_URL = os.environ.get("TRACKER_URL", "")
 
+_BOT_ID = None
+def get_bot_id():
+    global _BOT_ID
+    if _BOT_ID is None and BOT_TOKEN:
+        try:
+            r = httpx.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getMe", timeout=10)
+            _BOT_ID = r.json()["result"]["id"]
+        except Exception:
+            pass
+    return _BOT_ID
+
 TASK_KEYWORDS = ["нужно","надо","сделать","сделай","сделал","сделала","сделано","сделана",
                  "подготовить","подготовил","готово","готова","закрыл","закрыла","закрыто",
                  "добавить","добавил","внедрить","внедрил","прописать","прописал",
@@ -179,6 +190,110 @@ SMART_PROMPT = """Ты не секретарь. Ты стратегически�
 - Альтернатива должна быть КОНКРЕТНОЙ ("сделай X вместо Y потому что Z"), не общими фразами
 - Метрика для новой цели обязательна — без метрики это процесс
 - Думай как Шамиль или Тимур: что реально двигает запуск, а что съест ресурсы зря"""
+
+
+REPLY_PROMPT = """Ты стратегический помощник команды онлайн-курса.
+Пользователь {author} ответил на твоё предыдущее сообщение.
+
+ТВОЁ ПРЕДЫДУЩЕЕ СООБЩЕНИЕ:
+{bot_message}
+
+ОТВЕТ ПОЛЬЗОВАТЕЛЯ ({date}):
+{text}
+
+Текущие цели:
+{goals}
+
+Текущие задачи:
+{tasks}
+
+ПОНИМАЙ КОНТЕКСТ:
+- Если ты задавал уточняющие вопросы, а пользователь ответил — теперь у тебя есть данные, создавай задачу/цель
+- Если ты предлагал альтернативу, а пользователь согласился — сделай что предложил
+- Если он спорит/уточняет — продолжай разговор не настаивая
+- Если короткий ответ типа "да", "не надо", "хорошо", "оставь" — реагируй смыслово
+
+Верни ТОЛЬКО валидный JSON (без markdown):
+{{
+  "updates": [{{"task_id": 5, "new_status": "todo/in_progress/done", "comment": "..."}}],
+  "new_goals": [{{"title": "...", "metric": "...", "deadline": null, "category": "..."}}],
+  "actions": [{{"title": "...", "goal_id": null, "new_goal_index": null, "assignee": "{author}", "deadline": null, "priority": "medium", "category": "...", "context": "зачем"}}],
+  "reply": "Твой короткий ответ пользователю (1-3 предложения, по делу, как продолжение диалога). НЕ повторяй то что уже сказал."
+}}
+
+Правила:
+- reply ОБЯЗАТЕЛЬНО — это и есть твой ответ
+- Если действий нет — оставь массивы пустыми, но reply дай"""
+
+
+def process_reply(text, bot_message, author, msg_date, chat_id, msg_id):
+    """Отвечает на reply к сообщению бота с учётом контекста."""
+    if not GROQ_API_KEY:
+        return
+
+    goals = db.get_goals()
+    goals_text = "\n".join(
+        f"  id={g['id']} [{g.get('category','')}]: {g['title']}" + (f" → {g['metric']}" if g.get('metric') else "")
+        for g in goals if g.get("status") == "active"
+    ) or "  (целей пока нет)"
+
+    active = [t for t in db.get_tasks() if t.get("status") != "done"]
+    tasks_text = "\n".join(
+        f"  id={t['id']} [{t.get('status','todo')}]: {t['title']} (исполнитель: {t.get('assignee','')})"
+        for t in active[:25]
+    ) or "  (задач нет)"
+
+    try:
+        raw = call_groq(REPLY_PROMPT.format(
+            author=author, date=msg_date, text=text[:3000],
+            bot_message=bot_message[:2000],
+            goals=goals_text, tasks=tasks_text,
+        ), max_tokens=2000, temperature=0.4)
+        result = parse_json_response(raw)
+    except Exception as e:
+        logger.warning(f"Reply error: {e}")
+        return
+
+    # Применяем обновления статусов
+    for u in (result.get("updates") or []):
+        tid = u.get("task_id")
+        status = u.get("new_status")
+        if tid and status in ("todo", "in_progress", "done"):
+            db.update_task(tid, {"status": status})
+
+    # Создаём новые цели
+    created_goals = []
+    for ng in (result.get("new_goals") or []):
+        g = db.create_goal({
+            "title": ng["title"],
+            "metric": ng.get("metric") or None,
+            "deadline": ng.get("deadline") or None,
+            "status": "active",
+            "category": ng.get("category", "операционка"),
+        })
+        created_goals.append(g)
+
+    # Создаём действия
+    for a in (result.get("actions") or []):
+        gid = a.get("goal_id")
+        ngi = a.get("new_goal_index")
+        if ngi is not None and 0 <= ngi < len(created_goals):
+            gid = created_goals[ngi].get("id")
+        db.create_task({
+            "title": a["title"],
+            "assignee": a.get("assignee", author),
+            "deadline": a.get("deadline"),
+            "priority": a.get("priority", "medium"),
+            "status": "todo",
+            "category": a.get("category", "операционка"),
+            "source_date": msg_date,
+            "context": a.get("context", ""),
+            "goal_id": gid,
+        })
+
+    reply_text = result.get("reply", "").strip()
+    if reply_text:
+        tg_send(chat_id, reply_text, reply_to=msg_id, markdown=False)
 
 
 def smart_extract(text, author, msg_date):
@@ -495,6 +610,16 @@ def webhook(token):
 
     if not text:
         return "ok"
+
+    # Если это ответ на сообщение бота — отвечаем в контексте
+    reply_to_msg = msg.get("reply_to_message")
+    if reply_to_msg:
+        replied_user = reply_to_msg.get("from", {})
+        bot_id = get_bot_id()
+        if bot_id and replied_user.get("id") == bot_id:
+            bot_message = reply_to_msg.get("text", "")
+            process_reply(text, bot_message, author, msg_date, chat_id, msg_id)
+            return "ok"
 
     # Команды
     if text.startswith("/start") or text.startswith("/tasks"):
