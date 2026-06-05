@@ -3,374 +3,297 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Трекер задач</title>
+  <title>Трекер целей</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background: var(--tg-theme-bg-color, #1c1c1e);
-      color: var(--tg-theme-text-color, #ffffff);
-      min-height: 100vh;
-      padding-bottom: 80px;
+      color: var(--tg-theme-text-color, #fff);
+      min-height: 100vh; padding-bottom: 80px;
     }
 
+    /* Header */
     .header {
       position: sticky; top: 0; z-index: 50;
       background: var(--tg-theme-bg-color, #1c1c1e);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(255,255,255,.08);
       padding: 12px 16px 8px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .header-left h1 { font-size: 17px; font-weight: 600; }
-    .header-left .sub { font-size: 12px; color: var(--tg-theme-hint-color, #8e8e93); margin-top: 2px; }
+    .header h1 { font-size: 17px; font-weight: 700; }
+    .header .sub { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 2px; }
     .user-badge {
       display: flex; align-items: center; gap: 6px;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border-radius: 20px; padding: 5px 10px;
-      font-size: 12px; cursor: pointer;
+      background: var(--tg-theme-secondary-bg-color,#2c2c2e);
+      border-radius: 20px; padding: 5px 10px; font-size: 12px; cursor: pointer;
     }
-    .user-avatar {
+    .avatar {
       width: 22px; height: 22px; border-radius: 50%;
-      background: var(--tg-theme-button-color, #3b82f6);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 600;
-      color: var(--tg-theme-button-text-color, #fff);
+      background: var(--tg-theme-button-color,#3b82f6);
+      color: #fff; display: flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 700;
     }
 
     /* Pages */
     .page { display: none; }
     .page.active { display: block; }
 
-    /* Stats */
-    .stats {
-      display: grid; grid-template-columns: repeat(4,1fr);
-      gap: 8px; padding: 12px 16px;
-    }
-    .stat-card {
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border-radius: 12px; padding: 10px 8px; text-align: center;
-    }
-    .stat-num { font-size: 22px; font-weight: 700; }
-    .stat-label { font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 2px; }
-    .stat-num.blue { color: #3b82f6; }
-    .stat-num.yellow { color: #f59e0b; }
-    .stat-num.green { color: #22c55e; }
-    .stat-num.red { color: #ef4444; }
+    /* Stats bar */
+    .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; padding: 12px 16px; }
+    .stat { background: var(--tg-theme-secondary-bg-color,#2c2c2e); border-radius: 12px; padding: 10px 8px; text-align: center; }
+    .stat-n { font-size: 22px; font-weight: 700; }
+    .stat-l { font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 2px; }
+    .blue { color: #3b82f6; } .yellow { color: #f59e0b; } .green { color: #22c55e; } .red { color: #ef4444; }
 
     /* Filters */
-    .filters {
-      padding: 0 16px 8px; display: flex; gap: 6px;
-      overflow-x: auto; scrollbar-width: none;
-    }
+    .filters { padding: 0 16px 8px; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
     .filters::-webkit-scrollbar { display: none; }
     .chip {
       flex-shrink: 0; padding: 6px 12px; border-radius: 20px;
       font-size: 13px; font-weight: 500; border: none; cursor: pointer;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      color: var(--tg-theme-hint-color, #8e8e93);
-    }
-    .chip.active {
-      background: var(--tg-theme-button-color, #3b82f6);
-      color: var(--tg-theme-button-text-color, #fff);
-    }
-
-    /* Search */
-    .search-wrap { padding: 0 16px 10px; }
-    .search {
-      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border: none; border-radius: 10px; padding: 9px 12px;
-      color: var(--tg-theme-text-color,#fff); font-size: 15px; outline: none;
-    }
-    .search::placeholder { color: var(--tg-theme-hint-color,#8e8e93); }
-
-    /* Tasks */
-    .tasks { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
-
-    .task {
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border-radius: 14px; padding: 12px 14px;
-      display: flex; gap: 10px; align-items: flex-start;
-    }
-    .task.mine { border-left: 3px solid var(--tg-theme-button-color, #3b82f6); }
-    .task.done { opacity: 0.45; }
-
-    .task-dot {
-      width: 28px; height: 28px; border-radius: 50%;
-      flex-shrink: 0; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px;
-    }
-    .dot-todo { background: rgba(59,130,246,.2); color: #3b82f6; border: 2px solid #3b82f6; }
-    .dot-in_progress { background: rgba(245,158,11,.2); color: #f59e0b; border: 2px solid #f59e0b; }
-    .dot-done { background: rgba(34,197,94,.2); color: #22c55e; border: 2px solid #22c55e; }
-
-    /* Status picker sheet */
-    .status-sheet {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.5); z-index: 70; align-items: flex-end;
-    }
-    .status-sheet.open { display: flex; }
-    .status-inner {
-      background: var(--tg-theme-bg-color, #1c1c1e);
-      border-radius: 20px 20px 0 0;
-      padding: 8px 16px 32px; width: 100%;
-    }
-    .status-handle {
-      width: 36px; height: 4px; background: rgba(255,255,255,.15);
-      border-radius: 2px; margin: 8px auto 16px;
-    }
-    .status-title { font-size: 13px; color: var(--tg-theme-hint-color,#8e8e93); margin-bottom: 12px; }
-    .status-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
-    .status-option {
-      display: flex; align-items: center; gap: 14px;
-      padding: 14px 16px; border-radius: 14px; cursor: pointer; border: none;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      color: var(--tg-theme-text-color,#fff); width: 100%; text-align: left;
-      font-size: 16px; font-family: inherit;
-      transition: opacity .15s;
-    }
-    .status-option:active { opacity: .7; }
-    .status-option.current { border: 2px solid var(--tg-theme-button-color,#3b82f6); }
-    .status-option .s-icon { font-size: 22px; width: 28px; text-align: center; }
-    .status-option .s-label { font-weight: 500; }
-    .status-option .s-sub { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 1px; }
-    .status-cancel {
-      width: 100%; padding: 14px; border-radius: 12px; border: none;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      background: var(--tg-theme-secondary-bg-color,#2c2c2e);
       color: var(--tg-theme-hint-color,#8e8e93);
-      font-size: 16px; cursor: pointer; font-family: inherit;
     }
+    .chip.active { background: var(--tg-theme-button-color,#3b82f6); color: #fff; }
 
-    .task-body { flex: 1; min-width: 0; }
-    .task-title { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 5px; }
-    .task.done .task-title { text-decoration: line-through; color: var(--tg-theme-hint-color,#8e8e93); }
+    /* Goal card */
+    .goals-list { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
 
-    .task-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-    .tag { font-size: 11px; padding: 2px 7px; border-radius: 20px; font-weight: 500; }
-    .tag-todo { background: rgba(59,130,246,.15); color: #60a5fa; }
-    .tag-in_progress { background: rgba(245,158,11,.15); color: #fbbf24; }
-    .tag-done { background: rgba(34,197,94,.15); color: #4ade80; }
-    .tag-high { background: rgba(239,68,68,.15); color: #f87171; }
-    .tag-medium { background: rgba(245,158,11,.12); color: #fbbf24; }
-    .tag-low { background: rgba(107,114,128,.15); color: #9ca3af; }
-    .tag-cat { background: rgba(139,92,246,.15); color: #a78bfa; }
-    .tag-deadline { background: rgba(239,68,68,.12); color: #fca5a5; }
-    .tag-assignee { background: rgba(59,130,246,.12); color: #93c5fd; }
+    .goal-card { background: var(--tg-theme-secondary-bg-color,#2c2c2e); border-radius: 16px; overflow: hidden; }
+    .goal-card.done { opacity: .55; }
 
-    .task-context {
+    .goal-header { padding: 14px 14px 10px; cursor: pointer; }
+    .goal-top { display: flex; align-items: flex-start; gap: 10px; }
+    .goal-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .goal-body { flex: 1; min-width: 0; }
+    .goal-title { font-size: 15px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+    .goal-metric {
       font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93);
-      margin-top: 5px; line-height: 1.4;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .goal-metric span { color: #4ade80; font-weight: 600; }
+
+    /* Progress bar */
+    .progress-wrap { padding: 0 14px 12px; }
+    .progress-bar { height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+    .progress-fill { height: 100%; background: #22c55e; border-radius: 2px; transition: width .3s; }
+    .progress-labels { display: flex; gap: 10px; font-size: 11px; color: var(--tg-theme-hint-color,#8e8e93); }
+    .progress-labels .pl { display: flex; align-items: center; gap: 3px; }
+    .dot8 { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Actions list */
+    .actions-list { border-top: 1px solid rgba(255,255,255,.06); }
+    .action-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.04);
+      cursor: pointer;
+    }
+    .action-item:last-child { border-bottom: none; }
+    .action-dot {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+    }
+    .ad-todo { background: rgba(59,130,246,.15); color: #3b82f6; border: 1.5px solid #3b82f6; }
+    .ad-in_progress { background: rgba(245,158,11,.15); color: #f59e0b; border: 1.5px solid #f59e0b; }
+    .ad-done { background: rgba(34,197,94,.15); color: #22c55e; border: 1.5px solid #22c55e; }
+
+    .action-text { flex: 1; min-width: 0; }
+    .action-title { font-size: 13px; line-height: 1.3; }
+    .action-item.done .action-title { text-decoration: line-through; color: var(--tg-theme-hint-color,#8e8e93); }
+    .action-meta { display: flex; gap: 6px; margin-top: 3px; flex-wrap: wrap; }
+    .action-tag { font-size: 10px; padding: 1px 6px; border-radius: 10px; }
+    .at-person { background: rgba(59,130,246,.12); color: #93c5fd; }
+    .at-deadline { background: rgba(239,68,68,.12); color: #fca5a5; }
+    .at-high { background: rgba(239,68,68,.15); color: #f87171; }
+
+    .goal-add-action {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px; font-size: 13px;
+      color: var(--tg-theme-button-color,#3b82f6);
+      cursor: pointer; border: none; background: none; width: 100%;
+      border-top: 1px solid rgba(255,255,255,.06);
     }
 
     /* Team page */
     .team-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
-    .member-card {
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border-radius: 14px; padding: 14px;
-      cursor: pointer;
-    }
-    .member-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .member-avatar {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: var(--tg-theme-button-color, #3b82f6);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px; font-weight: 700;
-      color: var(--tg-theme-button-text-color, #fff);
-      flex-shrink: 0;
+    .member-card { background: var(--tg-theme-secondary-bg-color,#2c2c2e); border-radius: 14px; padding: 14px; }
+    .member-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .member-av {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: var(--tg-theme-button-color,#3b82f6);
+      color: #fff; display: flex; align-items: center;
+      justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0;
     }
     .member-name { font-size: 15px; font-weight: 600; }
-    .member-sub { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 2px; }
-    .member-bars { display: flex; gap: 6px; }
-    .bar-item {
-      flex: 1; background: rgba(255,255,255,0.06);
-      border-radius: 8px; padding: 6px 8px; text-align: center;
+    .member-sub { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); }
+    .member-tasks { display: flex; flex-direction: column; gap: 6px; }
+    .member-task {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 10px;
+      background: rgba(255,255,255,.04); font-size: 13px;
     }
-    .bar-num { font-size: 16px; font-weight: 700; }
-    .bar-label { font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93); }
-    .bar-item.red .bar-num { color: #f87171; }
-    .bar-item.yellow .bar-num { color: #fbbf24; }
-    .bar-item.green .bar-num { color: #4ade80; }
+    .member-task.done { opacity: .5; }
+    .member-task.done .mt-title { text-decoration: line-through; }
+    .mt-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
-    /* Sheet */
-    .sheet-overlay {
+    /* Status sheet */
+    .sheet-ov {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.5); z-index: 60; align-items: flex-end;
+      background: rgba(0,0,0,.5); z-index: 70; align-items: flex-end;
     }
-    .sheet-overlay.open { display: flex; }
+    .sheet-ov.open { display: flex; }
     .sheet {
-      background: var(--tg-theme-bg-color, #1c1c1e);
-      border-radius: 20px 20px 0 0;
-      padding: 8px 16px 32px; width: 100%;
-      max-height: 90vh; overflow-y: auto;
+      background: var(--tg-theme-bg-color,#1c1c1e);
+      border-radius: 20px 20px 0 0; padding: 8px 16px 32px;
+      width: 100%; max-height: 85vh; overflow-y: auto;
     }
-    .sheet-handle {
-      width: 36px; height: 4px;
-      background: rgba(255,255,255,.15);
-      border-radius: 2px; margin: 8px auto 16px;
+    .sheet-handle { width: 36px; height: 4px; background: rgba(255,255,255,.15); border-radius: 2px; margin: 8px auto 16px; }
+    .sheet h3 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    .sheet-sub { font-size: 13px; color: var(--tg-theme-hint-color,#8e8e93); margin-bottom: 16px; }
+
+    .status-opts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .status-opt {
+      display: flex; align-items: center; gap: 14px; padding: 13px 16px;
+      border-radius: 12px; border: 1.5px solid transparent;
+      background: var(--tg-theme-secondary-bg-color,#2c2c2e);
+      color: var(--tg-theme-text-color,#fff); cursor: pointer; width: 100%;
+      font-size: 15px; font-family: inherit; text-align: left;
     }
-    .sheet h3 { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
+    .status-opt:active { opacity: .7; }
+    .status-opt.current { border-color: var(--tg-theme-button-color,#3b82f6); }
+    .status-opt .si { font-size: 22px; width: 28px; text-align: center; }
+    .status-opt .sl { font-weight: 500; }
+    .status-opt .ss { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); }
+    .sheet-cancel {
+      width: 100%; padding: 13px; border-radius: 12px; border: none;
+      background: var(--tg-theme-secondary-bg-color,#2c2c2e);
+      color: var(--tg-theme-hint-color,#8e8e93); font-size: 15px; cursor: pointer;
+    }
+
+    /* Form sheet */
     .field { margin-bottom: 12px; }
     .field label {
-      font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93);
-      margin-bottom: 5px; display: block; font-weight: 500;
-      text-transform: uppercase; letter-spacing: .04em;
+      display: block; font-size: 12px; font-weight: 500; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--tg-theme-hint-color,#8e8e93); margin-bottom: 5px;
     }
     .field input, .field select, .field textarea {
-      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      width: 100%; background: var(--tg-theme-secondary-bg-color,#2c2c2e);
       border: none; border-radius: 10px; padding: 10px 12px;
-      color: var(--tg-theme-text-color,#fff); font-size: 15px;
-      outline: none; font-family: inherit;
+      color: var(--tg-theme-text-color,#fff); font-size: 15px; outline: none; font-family: inherit;
     }
+    .field textarea { resize: none; min-height: 60px; }
     .field select option { background: #2c2c2e; }
-    .field textarea { resize: none; min-height: 70px; }
     .sheet-btn {
       width: 100%; padding: 14px; border-radius: 12px; border: none;
-      background: var(--tg-theme-button-color, #3b82f6);
-      color: var(--tg-theme-button-text-color,#fff);
+      background: var(--tg-theme-button-color,#3b82f6); color: #fff;
       font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 4px;
     }
 
-    /* Analyze */
-    .analyze-area {
-      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border: none; border-radius: 10px; padding: 10px 12px;
-      color: var(--tg-theme-text-color,#fff); font-size: 15px;
-      outline: none; font-family: inherit; resize: none; min-height: 100px; margin-bottom: 10px;
-    }
-    .analyze-area::placeholder { color: var(--tg-theme-hint-color,#8e8e93); }
+    /* Add page */
+    .add-page { padding: 16px; display: flex; flex-direction: column; gap: 20px; }
+    .add-section { background: var(--tg-theme-secondary-bg-color,#2c2c2e); border-radius: 16px; padding: 16px; }
+    .add-section h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
 
-    /* Name setup */
-    .setup-screen {
+    /* Setup */
+    .setup {
       display: none; position: fixed; inset: 0; z-index: 100;
-      background: var(--tg-theme-bg-color, #1c1c1e);
-      flex-direction: column; align-items: center; justify-content: center;
-      padding: 32px;
+      background: var(--tg-theme-bg-color,#1c1c1e);
+      flex-direction: column; align-items: center; justify-content: center; padding: 32px;
     }
-    .setup-screen.show { display: flex; }
+    .setup.show { display: flex; }
     .setup-icon { font-size: 56px; margin-bottom: 16px; }
-    .setup-screen h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; text-align: center; }
-    .setup-screen p { font-size: 15px; color: var(--tg-theme-hint-color,#8e8e93); text-align: center; margin-bottom: 28px; }
+    .setup h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; text-align: center; }
+    .setup p { font-size: 15px; color: var(--tg-theme-hint-color,#8e8e93); text-align: center; margin-bottom: 28px; }
     .setup-input {
-      width: 100%; background: var(--tg-theme-secondary-bg-color, #2c2c2e);
-      border: none; border-radius: 12px; padding: 14px 16px;
-      color: var(--tg-theme-text-color,#fff); font-size: 17px; outline: none;
-      margin-bottom: 12px; text-align: center;
+      width: 100%; background: var(--tg-theme-secondary-bg-color,#2c2c2e);
+      border: none; border-radius: 12px; padding: 14px; color: var(--tg-theme-text-color,#fff);
+      font-size: 17px; outline: none; margin-bottom: 12px; text-align: center;
     }
     .setup-btn {
       width: 100%; padding: 14px; border-radius: 12px; border: none;
-      background: var(--tg-theme-button-color, #3b82f6);
-      color: var(--tg-theme-button-text-color,#fff);
+      background: var(--tg-theme-button-color,#3b82f6); color: #fff;
       font-size: 17px; font-weight: 600; cursor: pointer;
     }
-    .setup-skip {
-      margin-top: 12px; font-size: 14px;
-      color: var(--tg-theme-hint-color,#8e8e93); cursor: pointer;
-      background: none; border: none;
-    }
+    .setup-skip { margin-top: 12px; font-size: 14px; color: var(--tg-theme-hint-color,#8e8e93); cursor: pointer; background: none; border: none; }
 
-    .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
-      border-radius: 50%; animation: spin .7s linear infinite;
-      vertical-align: middle; margin-right: 6px;
-    }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-right: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .empty { text-align: center; padding: 60px 20px; color: var(--tg-theme-hint-color,#8e8e93); }
     .empty-icon { font-size: 48px; margin-bottom: 12px; }
-    .empty h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; color: var(--tg-theme-text-color,#fff); }
+    .empty h3 { font-size: 17px; font-weight: 600; color: var(--tg-theme-text-color,#fff); margin-bottom: 6px; }
 
-    /* Tab bar */
+    /* Tabbar */
     .tabbar {
       position: fixed; bottom: 0; left: 0; right: 0;
-      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      background: var(--tg-theme-secondary-bg-color,#2c2c2e);
       display: flex; border-top: 1px solid rgba(255,255,255,.06);
-      z-index: 40; padding-bottom: env(safe-area-inset-bottom, 0px);
+      z-index: 40; padding-bottom: env(safe-area-inset-bottom,0px);
     }
     .tab {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: center; padding: 8px 0 6px;
-      font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93);
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 0 6px; font-size: 10px; color: var(--tg-theme-hint-color,#8e8e93);
       cursor: pointer; border: none; background: none; gap: 3px;
     }
-    .tab.active { color: var(--tg-theme-button-color, #3b82f6); }
+    .tab.active { color: var(--tg-theme-button-color,#3b82f6); }
     .tab-icon { font-size: 22px; }
-
-    .section-title {
-      font-size: 13px; font-weight: 600;
-      color: var(--tg-theme-hint-color,#8e8e93);
-      padding: 8px 16px 4px; text-transform: uppercase; letter-spacing: .05em;
-    }
   </style>
 </head>
 <body>
 
-<!-- Setup screen — первый вход -->
-<div class="setup-screen" id="setup">
+<!-- Setup -->
+<div class="setup" id="setup">
   <div class="setup-icon">👋</div>
   <h2>Как тебя зовут?</h2>
-  <p>Укажи своё имя чтобы видеть только свои задачи</p>
-  <input class="setup-input" id="setup-name" type="text" placeholder="Александр"/>
+  <p>Чтобы видеть свои задачи отдельно</p>
+  <input class="setup-input" id="setup-name" placeholder="Александр"/>
   <button class="setup-btn" onclick="saveName()">Готово</button>
   <button class="setup-skip" onclick="skipSetup()">Пропустить</button>
 </div>
 
+<!-- Header -->
 <div class="header">
-  <div class="header-left">
-    <h1>Трекер задач</h1>
-    <div class="sub" id="header-sub">Загрузка...</div>
+  <div>
+    <h1>Цели команды</h1>
+    <div class="sub" id="hdr-sub">Загрузка...</div>
   </div>
-  <div class="user-badge" onclick="showSetup()" id="user-badge" style="display:none">
-    <div class="user-avatar" id="user-avatar">?</div>
-    <span id="user-name-badge">Я</span>
+  <div class="user-badge" onclick="showSetup()" id="ubadge" style="display:none">
+    <div class="avatar" id="uav">?</div>
+    <span id="uname">Я</span>
   </div>
 </div>
 
-<!-- Page: Все задачи -->
-<div class="page active" id="page-all">
+<!-- Page: Цели -->
+<div class="page active" id="page-goals">
   <div class="stats">
-    <div class="stat-card"><div class="stat-num" id="s-total">—</div><div class="stat-label">Всего</div></div>
-    <div class="stat-card"><div class="stat-num blue" id="s-todo">—</div><div class="stat-label">К работе</div></div>
-    <div class="stat-card"><div class="stat-num yellow" id="s-inprogress">—</div><div class="stat-label">В работе</div></div>
-    <div class="stat-card"><div class="stat-num green" id="s-done">—</div><div class="stat-label">Готово</div></div>
+    <div class="stat"><div class="stat-n" id="s-goals">—</div><div class="stat-l">Целей</div></div>
+    <div class="stat"><div class="stat-n blue" id="s-todo">—</div><div class="stat-l">К работе</div></div>
+    <div class="stat"><div class="stat-n yellow" id="s-wip">—</div><div class="stat-l">В работе</div></div>
+    <div class="stat"><div class="stat-n green" id="s-done">—</div><div class="stat-l">Готово</div></div>
   </div>
-  <div class="filters" id="status-filters">
-    <button class="chip active" onclick="setStatus('',this)">Все</button>
-    <button class="chip" onclick="setStatus('todo',this)">🔵 К работе</button>
-    <button class="chip" onclick="setStatus('in_progress',this)">🟡 В работе</button>
-    <button class="chip" onclick="setStatus('done',this)">🟢 Готово</button>
-  </div>
-  <div class="filters" id="cat-filters">
+  <div class="filters" id="cat-chips">
     <button class="chip active" onclick="setCat('',this)">Все</button>
     <button class="chip" onclick="setCat('обучение',this)">📚 Обучение</button>
-    <button class="chip" onclick="setCat('продукт',this)">🛠 Продукт</button>
-    <button class="chip" onclick="setCat('контент',this)">✍️ Контент</button>
     <button class="chip" onclick="setCat('маркетинг',this)">📣 Маркетинг</button>
     <button class="chip" onclick="setCat('продажи',this)">💰 Продажи</button>
+    <button class="chip" onclick="setCat('контент',this)">✍️ Контент</button>
     <button class="chip" onclick="setCat('операционка',this)">⚙️ Операционка</button>
+    <button class="chip" onclick="setCat('продукт',this)">🛠 Продукт</button>
   </div>
-  <div class="search-wrap">
-    <input class="search" type="text" id="search" placeholder="🔍 Поиск..." oninput="loadAllTasks()"/>
-  </div>
-  <div class="tasks" id="tasks-all"></div>
+  <div class="goals-list" id="goals-list"></div>
 </div>
 
 <!-- Page: Мои задачи -->
 <div class="page" id="page-my">
-  <div class="filters" id="my-status-filters">
-    <button class="chip active" onclick="setMyStatus('',this)">Все</button>
-    <button class="chip" onclick="setMyStatus('todo',this)">🔵 К работе</button>
-    <button class="chip" onclick="setMyStatus('in_progress',this)">🟡 В работе</button>
-    <button class="chip" onclick="setMyStatus('done',this)">🟢 Готово</button>
+  <div class="filters" id="my-chips">
+    <button class="chip active" onclick="setMyFilter('',this)">Все</button>
+    <button class="chip" onclick="setMyFilter('todo',this)">🔵 К работе</button>
+    <button class="chip" onclick="setMyFilter('in_progress',this)">🟡 В работе</button>
+    <button class="chip" onclick="setMyFilter('done',this)">🟢 Готово</button>
   </div>
-  <div id="my-empty" class="empty" style="display:none">
-    <div class="empty-icon">🙌</div>
-    <h3>Нет задач</h3>
-    <p>Всё сделано или задачи ещё не назначены</p>
-  </div>
-  <div class="tasks" id="tasks-my"></div>
+  <div style="padding:0 16px" id="my-tasks-list"></div>
 </div>
 
 <!-- Page: Команда -->
@@ -378,149 +301,119 @@
   <div class="team-list" id="team-list"></div>
 </div>
 
-<!-- Page: Анализ + Добавить -->
+<!-- Page: Добавить -->
 <div class="page" id="page-add">
-  <!-- Анализ сообщения -->
-  <div style="padding: 16px 16px 0">
-    <div class="section-title" style="padding:0 0 8px">🤖 Анализ сообщения</div>
-    <textarea class="analyze-area" id="analyze-text" placeholder="Вставь сообщение из чата — бот найдёт задачи автоматически..."></textarea>
-    <input type="text" id="analyze-author" placeholder="Автор (необязательно)"
-      style="width:100%;background:var(--tg-theme-secondary-bg-color,#2c2c2e);border:none;border-radius:10px;padding:10px 12px;color:var(--tg-theme-text-color,#fff);font-size:15px;outline:none;margin-bottom:10px;font-family:inherit"/>
-    <button class="sheet-btn" id="analyze-btn" onclick="analyzeMsg()" style="margin-bottom:20px">Найти задачи</button>
-  </div>
-  <!-- Добавить вручную -->
-  <div style="padding: 0 16px">
-    <div class="section-title" style="padding:0 0 8px">➕ Добавить вручную</div>
-    <div class="field"><label>Название</label><input type="text" id="f-title" placeholder="Что нужно сделать?"/></div>
-    <div class="field"><label>Исполнитель</label><input type="text" id="f-assignee" placeholder="Имя"/></div>
-    <div class="field"><label>Дедлайн</label><input type="text" id="f-deadline" placeholder="до конца недели / 10 июня..."/></div>
-    <div class="field">
-      <label>Приоритет</label>
-      <select id="f-priority">
-        <option value="high">🔴 Высокий</option>
-        <option value="medium" selected>🟡 Средний</option>
-        <option value="low">⚪ Низкий</option>
-      </select>
+  <div class="add-page">
+    <div class="add-section">
+      <h3>🎯 Новая цель</h3>
+      <div class="field"><label>Цель (результат который хотим достичь)</label><input type="text" id="g-title" placeholder="Собрать поток из 20 учеников"/></div>
+      <div class="field"><label>Метрика успеха (необязательно)</label><input type="text" id="g-metric" placeholder="20 оплативших / 300к выручки..."/></div>
+      <div class="field"><label>Дедлайн</label><input type="text" id="g-deadline" placeholder="конец июня / 30 июня..."/></div>
+      <div class="field">
+        <label>Категория</label>
+        <select id="g-category">
+          <option value="маркетинг">📣 Маркетинг</option>
+          <option value="продажи">💰 Продажи</option>
+          <option value="обучение">📚 Обучение</option>
+          <option value="контент">✍️ Контент</option>
+          <option value="операционка">⚙️ Операционка</option>
+          <option value="продукт">🛠 Продукт</option>
+        </select>
+      </div>
+      <button class="sheet-btn" onclick="saveGoal()">Создать цель</button>
     </div>
-    <div class="field">
-      <label>Категория</label>
-      <select id="f-category">
-        <option value="обучение">📚 Обучение</option>
-        <option value="маркетинг">📣 Маркетинг</option>
-        <option value="продажи">💰 Продажи</option>
-        <option value="контент">✍️ Контент</option>
-        <option value="операционка" selected>⚙️ Операционка</option>
-        <option value="продукт">🛠 Продукт</option>
-      </select>
+
+    <div class="add-section">
+      <h3>✅ Новое действие</h3>
+      <div class="field">
+        <label>К какой цели</label>
+        <select id="a-goal"><option value="">— без цели —</option></select>
+      </div>
+      <div class="field"><label>Действие</label><input type="text" id="a-title" placeholder="Что конкретно нужно сделать?"/></div>
+      <div class="field"><label>Исполнитель</label><input type="text" id="a-assignee" placeholder="Имя"/></div>
+      <div class="field"><label>Дедлайн</label><input type="text" id="a-deadline" placeholder="до конца недели..."/></div>
+      <div class="field">
+        <label>Приоритет</label>
+        <select id="a-priority">
+          <option value="high">🔴 Высокий</option>
+          <option value="medium" selected>🟡 Средний</option>
+          <option value="low">⚪ Низкий</option>
+        </select>
+      </div>
+      <button class="sheet-btn" onclick="saveAction()">Добавить действие</button>
     </div>
-    <div class="field"><label>Контекст</label><textarea id="f-context" placeholder="Зачем эта задача?"></textarea></div>
-    <button class="sheet-btn" onclick="saveTask()">Сохранить</button>
+
+    <div class="add-section">
+      <h3>🤖 Анализ сообщения</h3>
+      <div class="field"><textarea id="an-text" placeholder="Вставь сообщение из чата — бот найдёт задачи..."></textarea></div>
+      <div class="field"><input type="text" id="an-author" placeholder="Автор (необязательно)"/></div>
+      <button class="sheet-btn" id="an-btn" onclick="analyzeMsg()">Найти задачи</button>
+    </div>
   </div>
 </div>
 
-<!-- Status picker -->
-<div class="status-sheet" id="status-sheet" onclick="closeStatusSheet(event)">
-  <div class="status-inner">
-    <div class="status-handle"></div>
-    <div class="status-title" id="status-task-title"></div>
-    <div class="status-options">
-      <button class="status-option" id="opt-todo" onclick="setStatus_('todo')">
-        <span class="s-icon">🔵</span>
-        <div><div class="s-label">К работе</div><div class="s-sub">Задача ещё не начата</div></div>
+<!-- Status sheet -->
+<div class="sheet-ov" id="status-ov" onclick="closeStatus(event)">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3 id="st-title"></h3>
+    <div class="sheet-sub" id="st-goal"></div>
+    <div class="status-opts">
+      <button class="status-opt" id="opt-todo" onclick="applyStatus('todo')">
+        <span class="si">🔵</span><div><div class="sl">К работе</div><div class="ss">Ещё не начато</div></div>
       </button>
-      <button class="status-option" id="opt-in_progress" onclick="setStatus_('in_progress')">
-        <span class="s-icon">🟡</span>
-        <div><div class="s-label">В работе</div><div class="s-sub">Взял в работу</div></div>
+      <button class="status-opt" id="opt-in_progress" onclick="applyStatus('in_progress')">
+        <span class="si">🟡</span><div><div class="sl">В работе</div><div class="ss">Взял в работу</div></div>
       </button>
-      <button class="status-option" id="opt-done" onclick="setStatus_('done')">
-        <span class="s-icon">🟢</span>
-        <div><div class="s-label">Выполнено</div><div class="s-sub">Задача закрыта</div></div>
+      <button class="status-opt" id="opt-done" onclick="applyStatus('done')">
+        <span class="si">🟢</span><div><div class="sl">Выполнено</div><div class="ss">Задача закрыта</div></div>
       </button>
     </div>
-    <button class="status-cancel" onclick="closeStatusSheet()">Отмена</button>
+    <button class="sheet-cancel" onclick="closeStatus()">Отмена</button>
   </div>
 </div>
 
-<!-- Tab bar -->
+<!-- Tabbar -->
 <div class="tabbar">
-  <button class="tab active" onclick="showPage('all',this)">
-    <span class="tab-icon">📋</span>Все
-  </button>
-  <button class="tab" onclick="showPage('my',this)">
-    <span class="tab-icon">👤</span>Мои
-  </button>
-  <button class="tab" onclick="showPage('team',this)">
-    <span class="tab-icon">👥</span>Команда
-  </button>
-  <button class="tab" onclick="showPage('add',this)">
-    <span class="tab-icon">➕</span>Добавить
-  </button>
+  <button class="tab active" onclick="showPage('goals',this)"><span class="tab-icon">🎯</span>Цели</button>
+  <button class="tab" onclick="showPage('my',this)"><span class="tab-icon">👤</span>Мои</button>
+  <button class="tab" onclick="showPage('team',this)"><span class="tab-icon">👥</span>Команда</button>
+  <button class="tab" onclick="showPage('add',this)"><span class="tab-icon">➕</span>Добавить</button>
 </div>
 
 <script>
   const tg = window.Telegram?.WebApp;
   if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor?.('bg_color'); }
 
-  const STATUS_LABELS = { todo:'К работе', in_progress:'В работе', done:'Готово' };
-  const PRIORITY_LABELS = { high:'Высокий', medium:'Средний', low:'Низкий' };
+  let myName = '', catFilter = '', myFilter = '', activeTaskId = null, currentPage = 'goals';
+  let goalsCache = [];
+
   const STATUS_NEXT = { todo:'in_progress', in_progress:'done', done:'todo' };
+  const DOT_ICON = { todo:'○', in_progress:'◑', done:'●' };
+  const CAT_ICON = { обучение:'📚', маркетинг:'📣', продажи:'💰', контент:'✍️', операционка:'⚙️', продукт:'🛠' };
 
-  let filterStatus = '';
-  let filterCat = '';
-  let myFilterStatus = '';
-  let currentPage = 'all';
-  let myName = '';
-  let allTasksCache = [];
-
-  // ── User name ────────────────────────────────────────────────────────────
+  // ── User ──────────────────────────────────────────────────────────────────
   function loadUser() {
-    myName = localStorage.getItem('myName') || '';
-
-    // Попробуем получить имя из Telegram
-    const tgName = tg?.initDataUnsafe?.user?.first_name || '';
-
-    if (!myName && !tgName) {
-      // Показываем экран настройки при первом входе
-      document.getElementById('setup').classList.add('show');
-      return;
-    }
-
-    if (!myName && tgName) {
-      myName = tgName;
-      localStorage.setItem('myName', myName);
-    }
-
+    myName = localStorage.getItem('myName') || tg?.initDataUnsafe?.user?.first_name || '';
+    if (!myName) { document.getElementById('setup').classList.add('show'); return; }
     applyUser();
   }
-
   function applyUser() {
     if (!myName) return;
-    const badge = document.getElementById('user-badge');
-    badge.style.display = 'flex';
-    document.getElementById('user-name-badge').textContent = myName.split(' ')[0];
-    document.getElementById('user-avatar').textContent = myName[0].toUpperCase();
-    // Подставить в поле исполнителя
-    document.getElementById('f-assignee').value = myName;
+    document.getElementById('ubadge').style.display = 'flex';
+    document.getElementById('uname').textContent = myName.split(' ')[0];
+    document.getElementById('uav').textContent = myName[0].toUpperCase();
+    document.getElementById('a-assignee').value = myName;
   }
-
   function saveName() {
-    const name = document.getElementById('setup-name').value.trim();
-    if (!name) return;
-    myName = name;
-    localStorage.setItem('myName', name);
+    const n = document.getElementById('setup-name').value.trim();
+    if (!n) return;
+    myName = n; localStorage.setItem('myName', n);
     document.getElementById('setup').classList.remove('show');
-    applyUser();
-    loadMyTasks();
+    applyUser(); if (currentPage === 'my') loadMyTasks();
   }
-
-  function skipSetup() {
-    document.getElementById('setup').classList.remove('show');
-  }
-
-  function showSetup() {
-    document.getElementById('setup-name').value = myName;
-    document.getElementById('setup').classList.add('show');
-  }
+  function skipSetup() { document.getElementById('setup').classList.remove('show'); }
+  function showSetup() { document.getElementById('setup-name').value = myName; document.getElementById('setup').classList.add('show'); }
 
   // ── Pages ─────────────────────────────────────────────────────────────────
   function showPage(name, el) {
@@ -529,10 +422,10 @@
     document.getElementById('page-' + name).classList.add('active');
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     el.classList.add('active');
-
-    if (name === 'all') loadAllTasks();
+    if (name === 'goals') loadGoals();
     if (name === 'my') loadMyTasks();
     if (name === 'team') loadTeam();
+    if (name === 'add') loadGoalOptions();
   }
 
   // ── API ───────────────────────────────────────────────────────────────────
@@ -541,245 +434,295 @@
     return r.json();
   }
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
-  async function loadStats() {
-    const s = await api('/api/stats');
-    document.getElementById('s-total').textContent = s.total;
-    document.getElementById('s-todo').textContent = s.todo;
-    document.getElementById('s-inprogress').textContent = s.in_progress;
-    document.getElementById('s-done').textContent = s.done;
-    document.getElementById('header-sub').textContent =
-      `${s.total} задач · ${s.high||0} срочных`;
-  }
-
-  // ── All tasks ──────────────────────────────────────────────────────────────
-  async function loadAllTasks() {
-    const p = new URLSearchParams();
-    if (filterStatus) p.set('status', filterStatus);
-    if (filterCat) p.set('category', filterCat);
-    const q = document.getElementById('search').value;
-    if (q) p.set('search', q);
-    const tasks = await api('/api/tasks?' + p);
-    allTasksCache = tasks;
-    renderTasks(tasks, 'tasks-all', false);
-  }
-
-  function setStatus(val, el) {
-    filterStatus = val;
-    document.querySelectorAll('#status-filters .chip').forEach(b => b.classList.remove('active'));
-    el.classList.add('active');
-    loadAllTasks();
-  }
-
+  // ── Goals page ────────────────────────────────────────────────────────────
   function setCat(val, el) {
-    filterCat = val;
-    document.querySelectorAll('#cat-filters .chip').forEach(b => b.classList.remove('active'));
+    catFilter = val;
+    document.querySelectorAll('#cat-chips .chip').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
-    loadAllTasks();
+    renderGoals();
+  }
+
+  async function loadGoals() {
+    const data = await api('/api/goals');
+    const stats = await api('/api/goal-stats');
+    goalsCache = data;
+    document.getElementById('s-goals').textContent = stats.goals_active || 0;
+    document.getElementById('s-todo').textContent = stats.tasks_todo || 0;
+    document.getElementById('s-wip').textContent = stats.tasks_in_progress || 0;
+    document.getElementById('s-done').textContent = stats.tasks_done || 0;
+    document.getElementById('hdr-sub').textContent = `${stats.goals_total} целей · ${stats.tasks_total} действий`;
+    renderGoals();
+  }
+
+  function renderGoals() {
+    const el = document.getElementById('goals-list');
+    let goals = goalsCache;
+    if (catFilter) goals = goals.filter(g => g.category === catFilter || g.id === null);
+    if (!goals.length) {
+      el.innerHTML = `<div class="empty"><div class="empty-icon">🎯</div><h3>Целей нет</h3><p>Добавь первую цель во вкладке Добавить</p></div>`;
+      return;
+    }
+    el.innerHTML = goals.map(g => renderGoalCard(g)).join('');
+  }
+
+  function renderGoalCard(g) {
+    const p = g.progress || { total:0, done:0, in_progress:0, todo:0 };
+    const pct = p.total ? Math.round(p.done / p.total * 100) : 0;
+    const icon = g.id ? (CAT_ICON[g.category] || '🎯') : '📌';
+    const isDone = g.status === 'done';
+
+    const actionsHtml = (g.tasks || []).map(t => `
+      <div class="action-item ${t.status==='done'?'done':''}"
+           onclick="openStatus(${t.id},'${t.status}',\`${esc(t.title)}\`,\`${esc(g.title)}\`)">
+        <div class="action-dot ad-${t.status}">${DOT_ICON[t.status]||'○'}</div>
+        <div class="action-text">
+          <div class="action-title">${esc(t.title)}</div>
+          <div class="action-meta">
+            ${t.assignee?`<span class="action-tag at-person">👤 ${esc(t.assignee)}</span>`:''}
+            ${t.deadline?`<span class="action-tag at-deadline">📅 ${esc(t.deadline)}</span>`:''}
+            ${t.priority==='high'?`<span class="action-tag at-high">🔴 срочно</span>`:''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="goal-card ${isDone?'done':''}">
+        <div class="goal-header">
+          <div class="goal-top">
+            <div class="goal-icon">${icon}</div>
+            <div class="goal-body">
+              <div class="goal-title">${esc(g.title)}</div>
+              ${g.metric ? `<div class="goal-metric">📊 <span>${esc(g.metric)}</span></div>` : ''}
+              ${g.deadline ? `<div class="goal-metric">⏰ ${esc(g.deadline)}</div>` : ''}
+            </div>
+          </div>
+        </div>
+        ${p.total > 0 ? `
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="progress-labels">
+            <div class="pl"><div class="dot8" style="background:#3b82f6"></div>${p.todo} к работе</div>
+            <div class="pl"><div class="dot8" style="background:#f59e0b"></div>${p.in_progress} в работе</div>
+            <div class="pl"><div class="dot8" style="background:#22c55e"></div>${p.done} готово</div>
+          </div>
+        </div>` : ''}
+        ${actionsHtml ? `<div class="actions-list">${actionsHtml}</div>` : ''}
+        ${g.id ? `<button class="goal-add-action" onclick="quickAddAction(${g.id}, event)">+ Добавить действие</button>` : ''}
+      </div>`;
+  }
+
+  function quickAddAction(goalId, e) {
+    e.stopPropagation();
+    // Переключаем на вкладку добавить с предвыбранной целью
+    showPage('add', document.querySelectorAll('.tab')[3]);
+    setTimeout(() => {
+      document.getElementById('a-goal').value = goalId;
+      document.getElementById('a-title').focus();
+    }, 100);
   }
 
   // ── My tasks ───────────────────────────────────────────────────────────────
-  async function loadMyTasks() {
-    if (!myName) {
-      document.getElementById('tasks-my').innerHTML = '';
-      document.getElementById('my-empty').style.display = 'block';
-      document.getElementById('my-empty').querySelector('h3').textContent = 'Укажи своё имя';
-      document.getElementById('my-empty').querySelector('p').textContent = 'Нажми на аватар в шапке';
-      return;
-    }
-
-    const all = await api('/api/tasks');
-    const nameLower = myName.toLowerCase();
-    let mine = all.filter(t =>
-      t.assignee && t.assignee.toLowerCase().includes(nameLower.split(' ')[0])
-    );
-
-    if (myFilterStatus) mine = mine.filter(t => t.status === myFilterStatus);
-
-    const empty = document.getElementById('my-empty');
-    if (!mine.length) {
-      empty.style.display = 'block';
-      document.getElementById('tasks-my').innerHTML = '';
-    } else {
-      empty.style.display = 'none';
-      renderTasks(mine, 'tasks-my', true);
-    }
-  }
-
-  function setMyStatus(val, el) {
-    myFilterStatus = val;
-    document.querySelectorAll('#my-status-filters .chip').forEach(b => b.classList.remove('active'));
+  function setMyFilter(val, el) {
+    myFilter = val;
+    document.querySelectorAll('#my-chips .chip').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
     loadMyTasks();
   }
 
-  // ── Team ───────────────────────────────────────────────────────────────────
-  async function loadTeam() {
-    const tasks = await api('/api/tasks');
-    const byAssignee = {};
+  async function loadMyTasks() {
+    const el = document.getElementById('my-tasks-list');
+    if (!myName) {
+      el.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><h3>Укажи своё имя</h3><p>Нажми на аватар в шапке</p></div>`;
+      return;
+    }
+    const goals = await api('/api/goals');
+    const nameLow = myName.toLowerCase().split(' ')[0];
+    let mine = [];
+    goals.forEach(g => {
+      (g.tasks||[]).forEach(t => {
+        if (t.assignee?.toLowerCase().includes(nameLow)) {
+          mine.push({ ...t, _goalTitle: g.title });
+        }
+      });
+    });
+    if (myFilter) mine = mine.filter(t => t.status === myFilter);
 
-    tasks.forEach(t => {
-      const a = t.assignee || '—';
-      if (!byAssignee[a]) byAssignee[a] = { todo:0, in_progress:0, done:0, high:0, tasks:[] };
-      byAssignee[a][t.status] = (byAssignee[a][t.status] || 0) + 1;
-      if (t.priority === 'high' && t.status !== 'done') byAssignee[a].high++;
-      byAssignee[a].tasks.push(t);
+    if (!mine.length) {
+      el.innerHTML = `<div class="empty"><div class="empty-icon">🙌</div><h3>Нет задач</h3><p>Всё готово или ещё не назначено</p></div>`;
+      return;
+    }
+
+    el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;padding-top:12px">` +
+      mine.map(t => `
+        <div style="background:var(--tg-theme-secondary-bg-color,#2c2c2e);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start"
+             class="${t.status==='done'?'done':''}">
+          <div class="action-dot ad-${t.status}" style="flex-shrink:0;margin-top:2px;cursor:pointer"
+               onclick="openStatus(${t.id},'${t.status}',\`${esc(t.title)}\`,\`${esc(t._goalTitle||'')}\`)">
+            ${DOT_ICON[t.status]||'○'}
+          </div>
+          <div style="flex:1;min-width:0;cursor:pointer" onclick="openStatus(${t.id},'${t.status}',\`${esc(t.title)}\`,\`${esc(t._goalTitle||'')}\`)">
+            <div style="font-size:14px;font-weight:500;line-height:1.3;${t.status==='done'?'text-decoration:line-through;opacity:.5':''}">${esc(t.title)}</div>
+            ${t._goalTitle ? `<div style="font-size:11px;color:var(--tg-theme-hint-color,#8e8e93);margin-top:3px">🎯 ${esc(t._goalTitle)}</div>` : ''}
+            <div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap">
+              ${t.deadline?`<span class="action-tag at-deadline">📅 ${esc(t.deadline)}</span>`:''}
+              ${t.priority==='high'?`<span class="action-tag at-high">🔴 срочно</span>`:''}
+            </div>
+          </div>
+        </div>`).join('') + `</div>`;
+  }
+
+  // ── Team ──────────────────────────────────────────────────────────────────
+  async function loadTeam() {
+    const goals = await api('/api/goals');
+    const byPerson = {};
+    goals.forEach(g => {
+      (g.tasks||[]).forEach(t => {
+        const a = t.assignee || '—';
+        if (!byPerson[a]) byPerson[a] = [];
+        byPerson[a].push({ ...t, _goalTitle: g.title });
+      });
     });
 
-    // Сортируем по количеству активных задач
-    const sorted = Object.entries(byAssignee)
-      .filter(([name]) => name !== '—')
-      .sort((a,b) => (b[1].todo + b[1].in_progress) - (a[1].todo + a[1].in_progress));
+    const sorted = Object.entries(byPerson)
+      .filter(([n]) => n !== '—')
+      .sort((a,b) => b[1].filter(t=>t.status!=='done').length - a[1].filter(t=>t.status!=='done').length);
 
     const el = document.getElementById('team-list');
     if (!sorted.length) {
-      el.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><h3>Нет данных</h3></div>';
+      el.innerHTML = `<div class="empty"><div class="empty-icon">👥</div><h3>Нет данных</h3></div>`;
       return;
     }
 
-    el.innerHTML = sorted.map(([name, data]) => {
+    el.innerHTML = sorted.map(([name, tasks]) => {
       const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-      const total = data.todo + data.in_progress + data.done;
+      const active = tasks.filter(t => t.status !== 'done');
       const isMe = myName && name.toLowerCase().includes(myName.toLowerCase().split(' ')[0]);
+      const tasksHtml = tasks.slice(0,5).map(t => `
+        <div class="member-task ${t.status==='done'?'done':''}"
+             onclick="openStatus(${t.id},'${t.status}',\`${esc(t.title)}\`,\`${esc(t._goalTitle||'')}\`)">
+          <div class="mt-dot" style="background:${{todo:'#3b82f6',in_progress:'#f59e0b',done:'#22c55e'}[t.status]||'#6b7280'}"></div>
+          <div class="mt-title" style="flex:1;font-size:13px">${esc(t.title)}</div>
+          ${t.priority==='high'&&t.status!=='done'?'<span style="font-size:10px;color:#f87171">🔴</span>':''}
+        </div>`).join('');
+
       return `
-        <div class="member-card" onclick="filterByMember('${esc(name)}')">
-          <div class="member-header">
-            <div class="member-avatar" style="${isMe?'background:#22c55e':''}">${initials}</div>
+        <div class="member-card">
+          <div class="member-top">
+            <div class="member-av" style="${isMe?'background:#22c55e':''}">${initials}</div>
             <div>
-              <div class="member-name">${esc(name)} ${isMe?'(я)':''}</div>
-              <div class="member-sub">${total} задач</div>
+              <div class="member-name">${esc(name)} ${isMe?'<span style="font-size:11px;color:#22c55e">(я)</span>':''}</div>
+              <div class="member-sub">${active.length} активных · ${tasks.filter(t=>t.status==='done').length} готово</div>
             </div>
-            ${data.high ? `<div style="margin-left:auto"><span class="tag tag-high">🔴 ${data.high} срочных</span></div>` : ''}
           </div>
-          <div class="member-bars">
-            <div class="bar-item red"><div class="bar-num">${data.todo}</div><div class="bar-label">К работе</div></div>
-            <div class="bar-item yellow"><div class="bar-num">${data.in_progress}</div><div class="bar-label">В работе</div></div>
-            <div class="bar-item green"><div class="bar-num">${data.done}</div><div class="bar-label">Готово</div></div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  function filterByMember(name) {
-    // Переключаемся на вкладку "Все" с фильтром по участнику
-    showPage('all', document.querySelectorAll('.tab')[0]);
-    // Ставим поиск по имени
-    document.getElementById('search').value = name;
-    loadAllTasks();
-    tg?.HapticFeedback?.impactOccurred('light');
-  }
-
-  // ── Render tasks ────────────────────────────────────────────────────────────
-  function renderTasks(tasks, containerId, highlightMine) {
-    const el = document.getElementById(containerId);
-    if (!tasks.length) {
-      el.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><h3>Задач нет</h3><p>Измени фильтр или добавь новую</p></div>`;
-      return;
-    }
-    const nameLower = myName.toLowerCase().split(' ')[0];
-    const DOT_ICONS = { todo: '○', in_progress: '◑', done: '●' };
-    el.innerHTML = tasks.map(t => {
-      const mine = highlightMine || (myName && t.assignee?.toLowerCase().includes(nameLower));
-      const titleEsc = esc(t.title);
-      return `
-        <div class="task ${t.status==='done'?'done':''} ${mine&&!highlightMine?'mine':''}" id="card-${t.id}">
-          <div class="task-dot dot-${t.status}"
-            onclick="openStatusSheet(${t.id},'${t.status}',\`${t.title.replace(/`/g,"'")}\`)">
-            ${DOT_ICONS[t.status]||'○'}
-          </div>
-          <div class="task-body" onclick="openStatusSheet(${t.id},'${t.status}',\`${t.title.replace(/`/g,"'")}\`)">
-            <div class="task-title">${titleEsc}</div>
-            <div class="task-tags">
-              <span class="tag tag-${t.status}">${STATUS_LABELS[t.status]||t.status}</span>
-              <span class="tag tag-${t.priority}">${PRIORITY_LABELS[t.priority]||t.priority}</span>
-              ${t.category?`<span class="tag tag-cat">${esc(t.category)}</span>`:''}
-              ${t.deadline?`<span class="tag tag-deadline">📅 ${esc(t.deadline)}</span>`:''}
-              ${t.assignee?`<span class="tag tag-assignee">👤 ${esc(t.assignee)}</span>`:''}
-            </div>
-            ${t.context?`<div class="task-context">${esc(t.context)}</div>`:''}
-          </div>
+          <div class="member-tasks">${tasksHtml}</div>
+          ${tasks.length > 5 ? `<div style="font-size:12px;color:var(--tg-theme-hint-color,#8e8e93);text-align:center;padding-top:8px">ещё ${tasks.length-5} задач</div>` : ''}
         </div>`;
     }).join('');
   }
 
-  // ── Status sheet ───────────────────────────────────────────────────────────
-  let activeTaskId = null;
-
-  function openStatusSheet(id, current, title) {
+  // ── Status sheet ──────────────────────────────────────────────────────────
+  function openStatus(id, current, title, goalTitle) {
     activeTaskId = id;
     tg?.HapticFeedback?.impactOccurred('medium');
-    document.getElementById('status-task-title').textContent = title.slice(0, 60);
-    ['todo','in_progress','done'].forEach(s => {
-      document.getElementById('opt-' + s).classList.toggle('current', s === current);
-    });
-    document.getElementById('status-sheet').classList.add('open');
+    document.getElementById('st-title').textContent = title.slice(0,60);
+    document.getElementById('st-goal').textContent = goalTitle ? `🎯 ${goalTitle}` : '';
+    ['todo','in_progress','done'].forEach(s =>
+      document.getElementById('opt-'+s).classList.toggle('current', s === current));
+    document.getElementById('status-ov').classList.add('open');
   }
 
-  function closeStatusSheet(e) {
-    if (e && e.target !== document.getElementById('status-sheet')) return;
-    document.getElementById('status-sheet').classList.remove('open');
+  function closeStatus(e) {
+    if (e && e.target !== document.getElementById('status-ov')) return;
+    document.getElementById('status-ov').classList.remove('open');
     activeTaskId = null;
   }
 
-  async function setStatus_(status) {
+  async function applyStatus(status) {
     if (!activeTaskId) return;
-    document.getElementById('status-sheet').classList.remove('open');
+    document.getElementById('status-ov').classList.remove('open');
     await api(`/api/tasks/${activeTaskId}`, { method:'PATCH', body: JSON.stringify({status}) });
     tg?.HapticFeedback?.notificationOccurred('success');
     activeTaskId = null;
-    if (currentPage === 'all') { loadAllTasks(); loadStats(); }
-    if (currentPage === 'my') { loadMyTasks(); loadStats(); }
+    if (currentPage === 'goals') loadGoals();
+    if (currentPage === 'my') loadMyTasks();
     if (currentPage === 'team') loadTeam();
   }
 
-  // ── Save task ──────────────────────────────────────────────────────────────
-  async function saveTask() {
-    const title = document.getElementById('f-title').value.trim();
+  // ── Save goal ─────────────────────────────────────────────────────────────
+  async function saveGoal() {
+    const title = document.getElementById('g-title').value.trim();
     if (!title) { tg?.HapticFeedback?.notificationOccurred('error'); return; }
-    await api('/api/tasks', { method:'POST', body: JSON.stringify({
-      title,
-      assignee: document.getElementById('f-assignee').value,
-      deadline: document.getElementById('f-deadline').value || null,
-      priority: document.getElementById('f-priority').value,
-      category: document.getElementById('f-category').value,
-      context: document.getElementById('f-context').value,
-      status: 'todo',
+    await api('/api/goals', { method:'POST', body: JSON.stringify({
+      title, metric: document.getElementById('g-metric').value || null,
+      deadline: document.getElementById('g-deadline').value || null,
+      category: document.getElementById('g-category').value,
     })});
+    document.getElementById('g-title').value = '';
+    document.getElementById('g-metric').value = '';
+    document.getElementById('g-deadline').value = '';
     tg?.HapticFeedback?.notificationOccurred('success');
-    ['f-title','f-deadline','f-context'].forEach(id => document.getElementById(id).value='');
-    loadStats();
-    if (tg) tg.showPopup?.({ title:'✅ Готово', message:'Задача добавлена', buttons:[{type:'ok'}] });
+    tg?.showPopup?.({ title:'✅ Цель создана', message: title, buttons:[{type:'ok'}] });
+    loadGoalOptions();
   }
 
-  // ── Analyze ────────────────────────────────────────────────────────────────
+  // ── Save action ───────────────────────────────────────────────────────────
+  async function saveAction() {
+    const title = document.getElementById('a-title').value.trim();
+    if (!title) { tg?.HapticFeedback?.notificationOccurred('error'); return; }
+    const goalId = document.getElementById('a-goal').value;
+    await api('/api/tasks', { method:'POST', body: JSON.stringify({
+      title, assignee: document.getElementById('a-assignee').value,
+      deadline: document.getElementById('a-deadline').value || null,
+      priority: document.getElementById('a-priority').value,
+      goal_id: goalId ? parseInt(goalId) : null,
+      status: 'todo', category: 'операционка',
+      source_date: new Date().toLocaleDateString('ru', {day:'numeric',month:'long',year:'numeric'}),
+      context: '',
+    })});
+    document.getElementById('a-title').value = '';
+    document.getElementById('a-deadline').value = '';
+    tg?.HapticFeedback?.notificationOccurred('success');
+    tg?.showPopup?.({ title:'✅ Действие добавлено', message: title, buttons:[{type:'ok'}] });
+    if (currentPage === 'goals') loadGoals();
+  }
+
+  async function loadGoalOptions() {
+    const goals = await api('/api/goals');
+    const sel = document.getElementById('a-goal');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">— без цели —</option>' +
+      goals.filter(g => g.id).map(g => `<option value="${g.id}">${esc(g.title)}</option>`).join('');
+    if (current) sel.value = current;
+  }
+
+  // ── Analyze ───────────────────────────────────────────────────────────────
   async function analyzeMsg() {
-    const text = document.getElementById('analyze-text').value.trim();
+    const text = document.getElementById('an-text').value.trim();
     if (!text) return;
-    const btn = document.getElementById('analyze-btn');
+    const btn = document.getElementById('an-btn');
     btn.innerHTML = '<span class="spinner"></span>Анализирую...';
     btn.disabled = true;
     try {
       const tasks = await api('/api/analyze', { method:'POST', body: JSON.stringify({
-        text, author: document.getElementById('analyze-author').value || myName || '',
+        text, author: document.getElementById('an-author').value || myName || '',
       })});
+      document.getElementById('an-text').value = '';
       tg?.HapticFeedback?.notificationOccurred('success');
-      document.getElementById('analyze-text').value = '';
-      loadStats();
-      tg?.showPopup?.({ title:'✅ Готово', message:`Найдено задач: ${tasks.length}`, buttons:[{type:'ok'}] });
+      tg?.showPopup?.({ title:'✅ Готово', message:`Найдено: ${tasks.length} действий`, buttons:[{type:'ok'}] });
+      if (currentPage === 'goals') loadGoals();
     } catch(e) { tg?.HapticFeedback?.notificationOccurred('error'); }
     btn.innerHTML = 'Найти задачи';
     btn.disabled = false;
   }
 
   function esc(s) {
-    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
   loadUser();
-  loadStats();
-  loadAllTasks();
+  loadGoals();
 </script>
 </body>
 </html>

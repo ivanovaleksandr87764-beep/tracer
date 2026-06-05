@@ -272,6 +272,43 @@ def get_stats():
     return jsonify(db.get_stats())
 
 
+# ── Goals API ─────────────────────────────────────────────────────────────────
+
+@app.route("/api/goals")
+def get_goals():
+    return jsonify(db.get_goals_with_tasks())
+
+
+@app.route("/api/goals", methods=["POST"])
+def create_goal():
+    data = request.json
+    goal = {
+        "title": data.get("title", ""),
+        "metric": data.get("metric") or None,
+        "deadline": data.get("deadline") or None,
+        "status": "active",
+        "category": data.get("category", "операционка"),
+    }
+    return jsonify(db.create_goal(goal))
+
+
+@app.route("/api/goals/<int:goal_id>", methods=["PATCH"])
+def update_goal(goal_id):
+    result = db.update_goal(goal_id, request.json)
+    return jsonify(result) if result else (jsonify({"error": "not found"}), 404)
+
+
+@app.route("/api/goals/<int:goal_id>", methods=["DELETE"])
+def delete_goal(goal_id):
+    db.delete_goal(goal_id)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/goal-stats")
+def goal_stats():
+    return jsonify(db.get_goal_stats())
+
+
 @app.route("/api/migrate", methods=["POST"])
 def migrate():
     db.migrate_from_json()
