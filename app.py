@@ -18,9 +18,12 @@ BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 TRACKER_URL = os.environ.get("TRACKER_URL", "")
 
-TASK_KEYWORDS = ["нужно","надо","сделать","сделай","подготовить","добавить",
-                 "внедрить","прописать","составить","создать","провести",
-                 "запустить","собрать","переделать","записать","поставить"]
+TASK_KEYWORDS = ["нужно","надо","сделать","сделай","сделал","сделала","сделано","сделана",
+                 "подготовить","подготовил","готово","готова","закрыл","закрыла","закрыто",
+                 "добавить","добавил","внедрить","внедрил","прописать","прописал",
+                 "составить","составил","создать","создал","провести","провёл","провел",
+                 "запустить","запустил","собрать","собрал","переделать","записать","записал",
+                 "поставить","поставил","взял","взяла","начал","начала","приступаю","закончил","выполнил"]
 
 TASK_PROMPT = """Ты извлекаешь задачи из рабочих переписок.
 
@@ -107,6 +110,9 @@ SMART_PROMPT = """Ты не секретарь. Ты стратегически�
 Текущие активные цели команды:
 {goals}
 
+Существующие задачи (для апдейта статусов):
+{tasks}
+
 ТВОЙ ПРОЦЕСС ДУМАНИЯ (важен порядок):
 1. ДОСТАТОЧНО ДАННЫХ? Если в сообщении нет ключевых деталей (что именно / для какой аудитории / срок / зачем) — НЕ ДОДУМЫВАЙ. Задай встречные вопросы в thinking.
 2. РЕЗУЛЬТАТ. Какой реальный результат человек хочет? (не задачу — а конечный результат)
@@ -124,6 +130,9 @@ SMART_PROMPT = """Ты не секретарь. Ты стратегически�
 
 Верни ТОЛЬКО валидный JSON (без markdown):
 {{
+  "updates": [
+    {{"task_id": 35, "new_status": "done", "comment": "пользователь сказал что выполнил"}}
+  ],
   "new_goals": [
     {{"title": "цель: глагол + измеримый результат", "metric": "число/конкретный факт", "deadline": "дедлайн или null", "category": "обучение/маркетинг/продажи/контент/операционка/продукт"}}
   ],
@@ -145,6 +154,14 @@ SMART_PROMPT = """Ты не секретарь. Ты стратегически�
   "doubt": "Если задача дублирует существующую или вообще не нужна — напиши почему, название цели в кавычках. Иначе пустая строка."
 }}
 
+ОБНОВЛЕНИЯ СТАТУСОВ (updates) — самое важное:
+- Если автор пишет "таблица сделана" / "готово" / "закрыл" / "сделал" — найди соответствующую задачу в списке и поставь new_status="done"
+- Если пишет "взял в работу" / "начал делать" / "приступаю" / "сейчас занимаюсь" — поставь new_status="in_progress"
+- Если "вернул в работу" / "не получилось" — new_status="todo"
+- Используй точные task_id из списка задач выше
+- Если непонятно про какую именно задачу — задай уточняющий вопрос в questions, updates оставь пустым
+- НЕ создавай новую задачу если речь об обновлении существующей
+
 ПРАВИЛА:
 - НИКОГДА не пиши "id5", "цель #3" — только НАЗВАНИЕ цели в кавычках
 - Не льсти. Не соглашайся со всем. Если суета — так и скажи в doubt
@@ -154,7 +171,7 @@ SMART_PROMPT = """Ты не секретарь. Ты стратегически�
 
 
 def smart_extract(text, author, msg_date):
-    """Извлекает задачи + привязывает к целям + создаёт новые цели если нужно."""
+    """Извлекает задачи + привязывает к целям + апдейтит статусы."""
     if not GROQ_API_KEY:
         return None
 
@@ -164,9 +181,23 @@ def smart_extract(text, author, msg_date):
         for g in goals if g.get("status") == "active"
     ) or "  (целей пока нет)"
 
+    # Передаём активные задачи чтобы AI мог апдейтить их статусы
+    all_tasks = db.get_tasks()
+    active_tasks = [t for t in all_tasks if t.get("status") != "done"]
+    # Берём задачи назначенные на автора + последние общие, чтобы влезть в контекст
+    author_lower = author.lower().split()[0] if author else ""
+    mine = [t for t in active_tasks if author_lower and t.get("assignee","").lower().find(author_lower) >= 0]
+    others = [t for t in active_tasks if t not in mine][:15]
+    relevant = mine + others
+    tasks_text = "\n".join(
+        f"  id={t['id']} [{t.get('status','todo')}]: {t['title']} (исполнитель: {t.get('assignee','')})"
+        for t in relevant
+    ) or "  (активных задач нет)"
+
     try:
         raw = call_groq(SMART_PROMPT.format(
-            author=author, date=msg_date, text=text[:3000], goals=goals_text
+            author=author, date=msg_date, text=text[:3000],
+            goals=goals_text, tasks=tasks_text,
         ), max_tokens=3000, temperature=0.4)
         return parse_json_response(raw)
     except Exception as e:
@@ -187,13 +218,24 @@ def process_message(text, author, msg_date, chat_id, msg_id):
 
     actions = result.get("actions", [])
     new_goals = result.get("new_goals", [])
+    updates = result.get("updates", []) or []
     thinking = result.get("thinking", "")
     alternative = result.get("alternative", "")
     doubt = result.get("doubt", "")
     questions = result.get("questions", []) or []
 
-    # Даже если задач нет — если есть сомнение или альтернатива, ответим
-    if not actions and not new_goals and not (doubt or alternative):
+    # Применяем обновления статусов
+    updated_tasks = []
+    for u in updates:
+        tid = u.get("task_id")
+        status = u.get("new_status")
+        if tid and status in ("todo", "in_progress", "done"):
+            updated = db.update_task(tid, {"status": status})
+            if updated:
+                updated_tasks.append({**updated, "_new_status": status, "_comment": u.get("comment","")})
+
+    # Если только обновления статусов — этого достаточно для ответа
+    if not actions and not new_goals and not updated_tasks and not (doubt or alternative or questions):
         return
 
     # Создаём новые цели
@@ -249,6 +291,18 @@ def process_message(text, author, msg_date, chat_id, msg_id):
 
     # Формируем красивый ответ
     msg_parts = []
+
+    if updated_tasks:
+        STATUS_LABEL = {
+            "done": "✅ Закрыто",
+            "in_progress": "🟡 Взято в работу",
+            "todo": "🔵 Возвращено в очередь",
+        }
+        msg_parts.append("📌 Обновил статусы:")
+        for t in updated_tasks:
+            label = STATUS_LABEL.get(t["_new_status"], t["_new_status"])
+            msg_parts.append(f"  {label}: {t['title']}")
+        msg_parts.append("")
 
     if created_goals:
         msg_parts.append("🎯 Новые цели:")
