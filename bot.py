@@ -9,7 +9,7 @@ import re
 import json
 import logging
 import httpx
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CommandHandler, filters, ContextTypes
 
@@ -256,6 +256,183 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Не удалось добавить задачу — трекер недоступен")
 
 
+CHAT_ID = os.environ.get("REMINDER_CHAT_ID", "")  # ID чата куда слать напоминания
+
+# Дедлайн-парсеры — из текста в date
+DEADLINE_PARSE_RULES = [
+    # "до конца недели" → ближайшее воскресенье
+    (r"до\s+конца\s+недели", lambda: (date.today() + timedelta(days=(6 - date.today().weekday())))),
+    # "до конца месяца"
+    (r"до\s+конца\s+месяца", lambda: date.today().replace(day=28)),
+    # "сегодня"
+    (r"сегодня", lambda: date.today()),
+    # "завтра"
+    (r"завтра", lambda: date.today() + timedelta(days=1)),
+    # "эта неделя"
+    (r"эта\s+недел", lambda: date.today() + timedelta(days=(4 - date.today().weekday()))),
+    # "следующая неделя"
+    (r"следующая\s+недел", lambda: date.today() + timedelta(days=(11 - date.today().weekday()))),
+    # "середина следующей недели"
+    (r"середина\s+следующей", lambda: date.today() + timedelta(days=(9 - date.today().weekday()))),
+    # "пятница"
+    (r"пятниц", lambda: date.today() + timedelta(days=(4 - date.today().weekday()) % 7)),
+    # "2 June 2026" или "2 июня 2026"
+    (r"(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December|января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+(\d{4})",
+     lambda m=None: _parse_full_date(m)),
+]
+
+MONTH_MAP = {
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+    "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+    "января": 1, "февраля": 2, "марта": 3, "апреля": 4, "мая": 5, "июня": 6,
+    "июля": 7, "августа": 8, "сентября": 9, "октября": 10, "ноября": 11, "декабря": 12,
+}
+
+
+def _parse_full_date(m) -> date | None:
+    if not m:
+        return None
+    try:
+        day = int(m.group(1))
+        month = MONTH_MAP.get(m.group(2).lower(), 0)
+        year = int(m.group(3))
+        return date(year, month, day)
+    except Exception:
+        return None
+
+
+def parse_deadline(deadline_str: str) -> date | None:
+    """Парсит строку дедлайна в объект date."""
+    if not deadline_str:
+        return None
+    for pattern, resolver in DEADLINE_PARSE_RULES:
+        m = re.search(pattern, deadline_str, re.IGNORECASE)
+        if m:
+            try:
+                if pattern.startswith(r"(\d{1,2})"):
+                    result = _parse_full_date(m)
+                else:
+                    result = resolver()
+                return result
+            except Exception:
+                continue
+    return None
+
+
+async def get_all_tasks() -> list[dict]:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{TRACKER_URL}/api/tasks")
+            return r.json() if r.status_code == 200 else []
+    except Exception:
+        return []
+
+
+def format_reminder(tasks: list[dict], label: str) -> str:
+    if not tasks:
+        return ""
+    lines = [f"⏰ *{label}*"]
+    for t in tasks:
+        assignee = f" (@{t['assignee']})" if t.get("assignee") else ""
+        status_icon = {"todo": "🔴", "in_progress": "🟡", "done": "✅"}.get(t.get("status"), "⚪")
+        lines.append(f"{status_icon} {t['title'][:70]}{assignee}")
+    return "\n".join(lines)
+
+
+async def send_deadline_reminders(context) -> None:
+    """Проверяет дедлайны и шлёт напоминания в чат."""
+    chat_id = CHAT_ID
+    if not chat_id:
+        logger.warning("REMINDER_CHAT_ID не задан — напоминания не отправляются")
+        return
+
+    tasks = await get_all_tasks()
+    active = [t for t in tasks if t.get("status") != "done"]
+
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    overdue, due_today, due_tomorrow, due_week = [], [], [], []
+
+    for t in active:
+        dl = parse_deadline(t.get("deadline", ""))
+        if not dl:
+            continue
+        if dl < today:
+            overdue.append(t)
+        elif dl == today:
+            due_today.append(t)
+        elif dl == tomorrow:
+            due_tomorrow.append(t)
+        elif today < dl <= today + timedelta(days=7):
+            due_week.append(t)
+
+    parts = []
+    if overdue:
+        parts.append(format_reminder(overdue, "🚨 ПРОСРОЧЕНО"))
+    if due_today:
+        parts.append(format_reminder(due_today, "Дедлайн СЕГОДНЯ"))
+    if due_tomorrow:
+        parts.append(format_reminder(due_tomorrow, "Дедлайн ЗАВТРА"))
+    if due_week:
+        parts.append(format_reminder(due_week, "Дедлайн на этой неделе"))
+
+    if not parts:
+        return
+
+    message = "\n\n".join(parts) + f"\n\n🔗 {TRACKER_URL}"
+    try:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode="Markdown",
+        )
+        logger.info(f"Sent deadline reminder: {len(overdue)} overdue, {len(due_today)} today, {len(due_tomorrow)} tomorrow")
+    except Exception as e:
+        logger.error(f"Failed to send reminder: {e}")
+
+
+async def cmd_remind(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Принудительно проверить дедлайны прямо сейчас."""
+    tasks = await get_all_tasks()
+    active = [t for t in tasks if t.get("status") != "done"]
+
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+
+    overdue, due_today, due_tomorrow, due_week = [], [], [], []
+    no_deadline = []
+
+    for t in active:
+        dl = parse_deadline(t.get("deadline", ""))
+        if not dl:
+            no_deadline.append(t)
+            continue
+        if dl < today:
+            overdue.append(t)
+        elif dl == today:
+            due_today.append(t)
+        elif dl == tomorrow:
+            due_tomorrow.append(t)
+        elif today < dl <= today + timedelta(days=7):
+            due_week.append(t)
+
+    parts = []
+    if overdue:
+        parts.append(format_reminder(overdue, "🚨 ПРОСРОЧЕНО"))
+    if due_today:
+        parts.append(format_reminder(due_today, "Дедлайн СЕГОДНЯ"))
+    if due_tomorrow:
+        parts.append(format_reminder(due_tomorrow, "Дедлайн ЗАВТРА"))
+    if due_week:
+        parts.append(format_reminder(due_week, "Дедлайн на этой неделе"))
+    if not parts:
+        parts.append("✅ Просроченных и горящих задач нет!")
+
+    parts.append(f"\n📊 Без дедлайна: {len(no_deadline)} задач")
+    await update.message.reply_text("\n\n".join(parts) + f"\n\n🔗 {TRACKER_URL}", parse_mode="Markdown")
+
+
 def main():
     token = BOT_TOKEN
     if not token:
@@ -267,9 +444,25 @@ def main():
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("tasks", cmd_tasks))
     app.add_handler(CommandHandler("add", cmd_add))
+    app.add_handler(CommandHandler("remind", cmd_remind))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    # Напоминания каждый день в 09:00
+    job_queue = app.job_queue
+    job_queue.run_daily(
+        send_deadline_reminders,
+        time=datetime.strptime("09:00", "%H:%M").time(),
+        name="daily_reminder",
+    )
+    # Доп. проверка в 18:00 — только просроченные и сегодняшние
+    job_queue.run_daily(
+        send_deadline_reminders,
+        time=datetime.strptime("18:00", "%H:%M").time(),
+        name="evening_reminder",
+    )
+
     print(f"🤖 Бот запущен. Трекер: {TRACKER_URL}")
+    print(f"⏰ Напоминания: 09:00 и 18:00 → chat_id={CHAT_ID or 'не задан'}")
     app.run_polling(drop_pending_updates=True)
 
 
