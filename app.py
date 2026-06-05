@@ -155,7 +155,8 @@ SMART_PROMPT = """Ты не секретарь. Ты стратегически�
       "assignee": "{author}",
       "deadline": "дедлайн или null",
       "priority": "high/medium/low",
-      "category": "обучение/маркетинг/продажи/контент/операционка/продукт"
+      "category": "обучение/маркетинг/продажи/контент/операционка/продукт",
+      "context": "ЗАЧЕМ это действие — одно короткое предложение которое связывает действие с метрикой цели"
     }}
   ],
   "thinking": "Ход мысли 3-5 предложений. Если данных МАЛО — задай 2-3 уточняющих вопроса вместо размышлений. Если данных ДОСТАТОЧНО — рассуждай по существу. БЕЗ выдумывания цифр/сроков/деталей которых не было.",
@@ -334,7 +335,9 @@ def process_message(text, author, msg_date, chat_id, msg_id):
         for gid, tasks in by_goal.items():
             goal = goals_map.get(gid)
             if goal:
-                msg_parts.append(f"🎯 К цели «{goal['title']}»:")
+                msg_parts.append(f"🎯 К цели «{goal['title']}»")
+                if goal.get("metric"):
+                    msg_parts.append(f"   📊 {goal['metric']}")
             else:
                 msg_parts.append("📝 Без цели:")
             for t in tasks:
@@ -342,6 +345,10 @@ def process_message(text, author, msg_date, chat_id, msg_id):
                 if t.get("deadline"):
                     line += f" (до {t['deadline']})"
                 msg_parts.append(line)
+                if t.get("context"):
+                    ctx = t['context'].split(".")[0]
+                    if len(ctx) > 100: ctx = ctx[:100] + "..."
+                    msg_parts.append(f"     💭 {ctx}")
         msg_parts.append("")
 
     if thinking:
@@ -425,8 +432,16 @@ def send_deadline_reminders(chat_id):
                 lines.append("\n📝 *Без цели*")
             for t in ts:
                 assignee = t.get("assignee", "—")
+                context = (t.get("context") or "").strip()
+                deadline = t.get("deadline", "")
                 lines.append(f"   • {t['title']}")
-                lines.append(f"     👤 {assignee}")
+                lines.append(f"     👤 {assignee}" + (f"  📅 {deadline}" if deadline else ""))
+                if context:
+                    # Обрезаем длинный контекст до одного-двух предложений
+                    short = context.split(".")[0]
+                    if len(short) > 110:
+                        short = short[:110] + "..."
+                    lines.append(f"     💭 {short}")
         return "\n".join(lines)
 
     parts = []
