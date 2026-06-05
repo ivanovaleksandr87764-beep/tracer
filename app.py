@@ -58,7 +58,7 @@ def tg_send(chat_id, text, reply_to=None, markdown=True):
         logger.warning(f"tg_send error: {e}")
 
 
-AI_MODEL = os.environ.get("AI_MODEL", "deepseek-r1-distill-llama-70b")
+AI_MODEL = os.environ.get("AI_MODEL", "openai/gpt-oss-120b")
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "whisper-large-v3-turbo")
 
 
