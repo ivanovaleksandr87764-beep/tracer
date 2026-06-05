@@ -103,16 +103,22 @@ def analyze_full_chat(batch_size: int = 30) -> list[dict]:
     return all_tasks
 
 
-def analyze_new_message(message: dict) -> list[dict]:
-    """Analyze a single new message and add tasks to backlog."""
-    backlog = load_backlog()
+def analyze_new_message(message: dict, save_fn=None) -> list[dict]:
+    """Analyze a single new message and add tasks to backlog.
+    save_fn — функция сохранения (db.create_task или save_backlog).
+    """
     new_tasks = extract_tasks_from_messages([message])
 
-    next_id = max((t.get("id", 0) for t in backlog), default=0) + 1
-    new_tasks = assign_ids(new_tasks, next_id)
+    if save_fn:
+        for task in new_tasks:
+            save_fn(task)
+    else:
+        backlog = load_backlog()
+        next_id = max((t.get("id", 0) for t in backlog), default=0) + 1
+        new_tasks = assign_ids(new_tasks, next_id)
+        backlog.extend(new_tasks)
+        save_backlog(backlog)
 
-    backlog.extend(new_tasks)
-    save_backlog(backlog)
     return new_tasks
 
 
