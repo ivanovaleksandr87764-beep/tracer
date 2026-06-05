@@ -97,12 +97,51 @@
     .task.done { opacity: 0.45; }
 
     .task-dot {
-      width: 11px; height: 11px; border-radius: 50%;
-      flex-shrink: 0; margin-top: 4px; cursor: pointer;
+      width: 28px; height: 28px; border-radius: 50%;
+      flex-shrink: 0; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
     }
-    .dot-todo { background: #3b82f6; }
-    .dot-in_progress { background: #f59e0b; }
-    .dot-done { background: #22c55e; }
+    .dot-todo { background: rgba(59,130,246,.2); color: #3b82f6; border: 2px solid #3b82f6; }
+    .dot-in_progress { background: rgba(245,158,11,.2); color: #f59e0b; border: 2px solid #f59e0b; }
+    .dot-done { background: rgba(34,197,94,.2); color: #22c55e; border: 2px solid #22c55e; }
+
+    /* Status picker sheet */
+    .status-sheet {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.5); z-index: 70; align-items: flex-end;
+    }
+    .status-sheet.open { display: flex; }
+    .status-inner {
+      background: var(--tg-theme-bg-color, #1c1c1e);
+      border-radius: 20px 20px 0 0;
+      padding: 8px 16px 32px; width: 100%;
+    }
+    .status-handle {
+      width: 36px; height: 4px; background: rgba(255,255,255,.15);
+      border-radius: 2px; margin: 8px auto 16px;
+    }
+    .status-title { font-size: 13px; color: var(--tg-theme-hint-color,#8e8e93); margin-bottom: 12px; }
+    .status-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .status-option {
+      display: flex; align-items: center; gap: 14px;
+      padding: 14px 16px; border-radius: 14px; cursor: pointer; border: none;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      color: var(--tg-theme-text-color,#fff); width: 100%; text-align: left;
+      font-size: 16px; font-family: inherit;
+      transition: opacity .15s;
+    }
+    .status-option:active { opacity: .7; }
+    .status-option.current { border: 2px solid var(--tg-theme-button-color,#3b82f6); }
+    .status-option .s-icon { font-size: 22px; width: 28px; text-align: center; }
+    .status-option .s-label { font-weight: 500; }
+    .status-option .s-sub { font-size: 12px; color: var(--tg-theme-hint-color,#8e8e93); margin-top: 1px; }
+    .status-cancel {
+      width: 100%; padding: 14px; border-radius: 12px; border: none;
+      background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+      color: var(--tg-theme-hint-color,#8e8e93);
+      font-size: 16px; cursor: pointer; font-family: inherit;
+    }
 
     .task-body { flex: 1; min-width: 0; }
     .task-title { font-size: 14px; font-weight: 500; line-height: 1.4; margin-bottom: 5px; }
@@ -379,6 +418,29 @@
   </div>
 </div>
 
+<!-- Status picker -->
+<div class="status-sheet" id="status-sheet" onclick="closeStatusSheet(event)">
+  <div class="status-inner">
+    <div class="status-handle"></div>
+    <div class="status-title" id="status-task-title"></div>
+    <div class="status-options">
+      <button class="status-option" id="opt-todo" onclick="setStatus_('todo')">
+        <span class="s-icon">🔵</span>
+        <div><div class="s-label">К работе</div><div class="s-sub">Задача ещё не начата</div></div>
+      </button>
+      <button class="status-option" id="opt-in_progress" onclick="setStatus_('in_progress')">
+        <span class="s-icon">🟡</span>
+        <div><div class="s-label">В работе</div><div class="s-sub">Взял в работу</div></div>
+      </button>
+      <button class="status-option" id="opt-done" onclick="setStatus_('done')">
+        <span class="s-icon">🟢</span>
+        <div><div class="s-label">Выполнено</div><div class="s-sub">Задача закрыта</div></div>
+      </button>
+    </div>
+    <button class="status-cancel" onclick="closeStatusSheet()">Отмена</button>
+  </div>
+</div>
+
 <!-- Tab bar -->
 <div class="tabbar">
   <button class="tab active" onclick="showPage('all',this)">
@@ -616,13 +678,18 @@
       return;
     }
     const nameLower = myName.toLowerCase().split(' ')[0];
+    const DOT_ICONS = { todo: '○', in_progress: '◑', done: '●' };
     el.innerHTML = tasks.map(t => {
       const mine = highlightMine || (myName && t.assignee?.toLowerCase().includes(nameLower));
+      const titleEsc = esc(t.title);
       return `
         <div class="task ${t.status==='done'?'done':''} ${mine&&!highlightMine?'mine':''}" id="card-${t.id}">
-          <div class="task-dot dot-${t.status}" onclick="cycleStatus(${t.id},'${t.status}')"></div>
-          <div class="task-body">
-            <div class="task-title">${esc(t.title)}</div>
+          <div class="task-dot dot-${t.status}"
+            onclick="openStatusSheet(${t.id},'${t.status}',\`${t.title.replace(/`/g,"'")}\`)">
+            ${DOT_ICONS[t.status]||'○'}
+          </div>
+          <div class="task-body" onclick="openStatusSheet(${t.id},'${t.status}',\`${t.title.replace(/`/g,"'")}\`)">
+            <div class="task-title">${titleEsc}</div>
             <div class="task-tags">
               <span class="tag tag-${t.status}">${STATUS_LABELS[t.status]||t.status}</span>
               <span class="tag tag-${t.priority}">${PRIORITY_LABELS[t.priority]||t.priority}</span>
@@ -636,13 +703,34 @@
     }).join('');
   }
 
-  // ── Cycle status ───────────────────────────────────────────────────────────
-  async function cycleStatus(id, current) {
-    const next = STATUS_NEXT[current] || 'todo';
-    await api(`/api/tasks/${id}`, { method:'PATCH', body: JSON.stringify({status: next}) });
-    tg?.HapticFeedback?.impactOccurred('light');
+  // ── Status sheet ───────────────────────────────────────────────────────────
+  let activeTaskId = null;
+
+  function openStatusSheet(id, current, title) {
+    activeTaskId = id;
+    tg?.HapticFeedback?.impactOccurred('medium');
+    document.getElementById('status-task-title').textContent = title.slice(0, 60);
+    ['todo','in_progress','done'].forEach(s => {
+      document.getElementById('opt-' + s).classList.toggle('current', s === current);
+    });
+    document.getElementById('status-sheet').classList.add('open');
+  }
+
+  function closeStatusSheet(e) {
+    if (e && e.target !== document.getElementById('status-sheet')) return;
+    document.getElementById('status-sheet').classList.remove('open');
+    activeTaskId = null;
+  }
+
+  async function setStatus_(status) {
+    if (!activeTaskId) return;
+    document.getElementById('status-sheet').classList.remove('open');
+    await api(`/api/tasks/${activeTaskId}`, { method:'PATCH', body: JSON.stringify({status}) });
+    tg?.HapticFeedback?.notificationOccurred('success');
+    activeTaskId = null;
     if (currentPage === 'all') { loadAllTasks(); loadStats(); }
     if (currentPage === 'my') { loadMyTasks(); loadStats(); }
+    if (currentPage === 'team') loadTeam();
   }
 
   // ── Save task ──────────────────────────────────────────────────────────────
