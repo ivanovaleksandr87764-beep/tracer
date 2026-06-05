@@ -207,7 +207,7 @@ def smart_extract(text, author, msg_date):
 
     try:
         raw = call_groq(SMART_PROMPT.format(
-            author=author, date=msg_date, text=text[:3000],
+            author=author, date=msg_date, text=text[:6000],
             goals=goals_text, tasks=tasks_text,
         ), max_tokens=3000, temperature=0.4)
         return parse_json_response(raw)
@@ -489,8 +489,9 @@ def webhook(token):
             if not text:
                 tg_send(chat_id, "❌ Не смог распознать голосовое", reply_to=msg_id)
                 return "ok"
-            voice_source = "🎙 Расшифровка: " + (text[:200] + "..." if len(text) > 200 else text)
-            tg_send(chat_id, voice_source, reply_to=msg_id)
+            # Telegram держит до 4096 символов в одном сообщении
+            preview = text if len(text) <= 3500 else text[:3500] + "\n…(обрезано)"
+            tg_send(chat_id, "🎙 Расшифровка:\n" + preview, reply_to=msg_id, markdown=False)
 
     if not text:
         return "ok"
